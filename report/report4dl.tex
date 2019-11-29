@@ -1,0 +1,143 @@
+\documentclass[a4paper,12pt]{article} % This defines the style of your paper
+
+\usepackage[top = 2.5cm, bottom = 2.5cm, left = 2.5cm, right = 2.5cm]{geometry} 
+\usepackage[utf8]{inputenc} %utf8 % lettere accentate da tastiera
+\usepackage[english]{babel} % lingua del documento
+\usepackage[T1]{fontenc} % codifica dei font
+
+\usepackage{multirow} % Multirow is for tables with multiple rows within one 
+%cell.
+\usepackage{booktabs} % For even nicer tables.
+
+\usepackage{graphicx} 
+
+\usepackage{setspace}
+\setlength{\parindent}{0in}
+
+\usepackage{float}
+
+\usepackage{fancyhdr}
+
+\usepackage{caption}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{color}
+
+\usepackage[hidelinks]{hyperref}
+\usepackage{csquotes}
+\usepackage{subfigure}
+
+\usepackage{ifxetex,ifluatex}
+\usepackage{etoolbox}
+\usepackage[svgnames]{xcolor}
+
+\usepackage{tikz}
+
+\usepackage{framed}
+
+ \newcommand*\quotefont{\fontfamily{LinuxLibertineT-LF}} % selects Libertine as 
+ %the quote font
+
+
+\newcommand*\quotesize{40} % if quote size changes, need a way to make shifts 
+%relative
+% Make commands for the quotes
+\newcommand*{\openquote}
+{\tikz[remember picture,overlay,xshift=-4ex,yshift=-1ex]
+	\node (OQ) 
+	{\quotefont\fontsize{\quotesize}{\quotesize}\selectfont``};\kern0pt}
+
+\newcommand*{\closequote}[1]
+{\tikz[remember picture,overlay,xshift=4ex,yshift=-1ex]
+	\node (CQ) {\quotefont\fontsize{\quotesize}{\quotesize}\selectfont''};}
+
+% select a colour for the shading
+\colorlet{shadecolor}{WhiteSmoke}
+
+\newcommand*\shadedauthorformat{\emph} % define format for the author argument
+
+% Now a command to allow left, right and centre alignment of the author
+\newcommand*\authoralign[1]{%
+	\if#1l
+	\def\authorfill{}\def\quotefill{\hfill}
+	\else
+	\if#1r
+	\def\authorfill{\hfill}\def\quotefill{}
+	\else
+	\if#1c
+	\gdef\authorfill{\hfill}\def\quotefill{\hfill}
+	\else\typeout{Invalid option}
+	\fi
+	\fi
+	\fi}
+% wrap everything in its own environment which takes one argument (author) and 
+%one optional argument
+% specifying the alignment [l, r or c]
+%
+\newenvironment{shadequote}[2][l]%
+{\authoralign{#1}
+	\ifblank{#2}
+	{\def\shadequoteauthor{}\def\yshift{-2ex}\def\quotefill{\hfill}}
+	{\def\shadequoteauthor{\par\authorfill\shadedauthorformat{#2}}\def\yshift{2ex}}
+	\begin{snugshade}\begin{quote}\openquote}
+		{\shadequoteauthor\quotefill\closequote{\yshift}\end{quote}\end{snugshade}}
+
+\newcommand{\footref}[1]{%
+	$^{\ref{#1}}$%
+}
+
+\pagestyle{fancy}
+
+\setlength\parindent{24pt}
+
+\fancyhf{}
+
+\lhead{\footnotesize Deep Learning Lab: Assignment 4}
+
+\rhead{\footnotesize Giorgia Adorni}
+
+\cfoot{\footnotesize \thepage} 
+
+\begin{document}
+	\thispagestyle{empty}  
+	\noindent{
+	\begin{tabular}{p{15cm}} 
+		{\large \bf Deep Learning Lab} \\
+		Università della Svizzera Italiana \\ Faculty of Informatics \\ \today  \\
+		\hline
+		\\
+	\end{tabular} 
+	
+	\vspace*{0.3cm} 
+	
+	\begin{center}
+		{\Large \bf Assignment 4: Deep Q-Network}
+		\vspace{2mm}
+		
+		{\bf Giorgia Adorni (giorgia.adorni@usi.ch)}
+		
+	\end{center}  
+}
+	\vspace{0.4cm}
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+	\section{Introduction}
+	\label{section:intro}
+	
+	\section{Environment}
+	\label{section:environment}
+	
+	\section{Agent}
+	\label{section:agent}
+	
+	\section{Training}
+	\label{section:training}
+	
+	
+	\section{Tasks}
+	\label{section:tasks}
+
+\end{document}
