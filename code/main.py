@@ -101,9 +101,9 @@ def conv_net(X, k):
     # Convolutional layer 3: 64 filters, 3 × 3.
     A_conv3, W_conv3 = create_conv_layer(3, 1, 64, 64, A_conv2)
 
-    A_conv3_shapes = X.shape.as_list()
+    A_conv3_shapes = A_conv3.shape.as_list()
     A_conv3_units = np.product(A_conv3_shapes[1:])
-    A_conv3_flat = tf.reshape(A_conv3, [A_conv3_shapes[0], A_conv3_units])
+    A_conv3_flat = tf.reshape(A_conv3, [-1, A_conv3_units])
 
     # Fully connected layer 1: 512 units.
     A_fc1 = create_fc_layer(A_conv3_units, 512, A_conv3_flat, True)
@@ -114,7 +114,7 @@ def conv_net(X, k):
     return A_fc2
 
 
-def net_param(model, learning_rate, decay, neurons_fc):
+def net_param(model, learning_rate, decay, k):
     """
 
     :param model: current model
@@ -122,18 +122,16 @@ def net_param(model, learning_rate, decay, neurons_fc):
     :param neurons_fc: number of units for the fully connected layer
     :return X, Y, Z, loss, accuracy, train
     """
-    with tf.variable_scope("model_{}".format(model)):
-        X = tf.placeholder(tf.float32, [None, 32, 32, 3], name='X')
+    with tf.variable_scope("model_{}".format(model)) as scope:
+        X = tf.placeholder(tf.float32, [None, 84, 84, 4], name='X')
         Y = tf.placeholder(tf.float32, [None, 10], name='Y')
 
-        Z = conv_net(X, neurons_fc)
+        Z = conv_net(X, k)
+        argmax_Z = tf.argmax(Z, axis=1)
 
         # Loss function
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=Y, logits=Z)
         loss = tf.reduce_mean(loss)
-
-        hits = tf.equal(tf.argmax(Z, axis=1), tf.argmax(Y, axis=1))
-        accuracy = tf.reduce_mean(tf.cast(hits, tf.float32))
 
         # Optimiser
         optimizer = tf.train.RMSPropOptimizer(learning_rate, decay)
@@ -169,4 +167,63 @@ env_name = 'BreakoutNoFrameskip-v4'
 clip_rewards = True
 
 env = wrap_atari_deepmind(env_name, clip_rewards)
+
+learning_rate = 0.0001
+decay = 0.99
+k = 10
+
+gamma = 0.99  # discount factor
+n_steps = 2000000
+s_epsilon = 1  # starting exploration rate
+f_epsilon = 0.1  # final exploration rate
+exploration_steps = 1000000
+
+# Initialize replay buffer D, which stores at most M tuples
+replay_buffer = ReplayBuffer()
+
+# Initialize network parameters θ randomly
+X_o, Y_o, Z_o, argmax_Z_o, loss_o, train_o, online_scope = net_param('online', learning_rate, decay, k)
+X_t, Y_t, Z_t, argmax_Z_t, loss_t, train_t, target_scope = net_param('target', learning_rate, decay, k)
+
+# Avoid allocating all GPU memory upfront.
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+session = tf.Session(config=config)
+session.run(tf.global_variables_initializer())
+
+# Training
+observation = env.reset()  # start new episode
+for t in range(n_steps):
+    env.render()  # render a frame for a certain number of steps
+
+    actual_epsilon = np.interp(t, [0, exploration_steps], [s_epsilon, f_epsilon])
+
+    if np.random.uniform(0, 1) < (1 - actual_epsilon):
+        # at ← arg max_a Q(st, a; θ)
+        action = session.run(argmax_Z_o, feed_dict={X_o: observation})
+    else:
+        # at ← random action
+        action = env.action_space.sample()
+
+    old_observation = observation
+    observation, reward, done, info = env.step(action)  # take a random action
+
+    # replay_buffer.append([old_observation, action, reward, observation, done])
+
+    # FIXME: The networks are not updated until the replay buffer is populated with M = 10000 transitions.
+
+    # Every n = 4 steps, sample a batch composed of B = 32 transitions from the replay buffer.
+    # FIXME: Using this batch, update the parameters of the online Q-network to minimize the loss L(θ).
+    if t % 4 == 0:
+        # batch = replay_buffer.sample(observation)
+        print()
+    # Every C = 10, 000 steps, copy the parameters of the online network to the target network.
+    if t % 10000 == 0:
+        assign = assign_weights(online_scope, target_scope)  # FIXME: execute this every C steps
+
+    if done:
+        print("Episode finished after {} timesteps".format(t + 1))
+        observation = env.reset()
+env.close()
 
