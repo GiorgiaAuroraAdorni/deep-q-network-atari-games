@@ -171,12 +171,15 @@ class ReplayBuffer(object):
         self.buffer[self.counter] = data
         self.counter = np.mod([self.counter + 1, self.capacity])
 
-    def sample(self, samples, datas):
+    def sample(self, datas):
         """
         :return:
         """
-        idx = np.random.choice(self.capacity, samples)
+        idx = np.random.choice(self.capacity, 32)
         return datas[idx]
+
+
+################################################################################
 
 
 env_name = 'BreakoutNoFrameskip-v4'
@@ -242,4 +245,7 @@ for t in range(n_steps):
         print("Episode finished after {} timesteps".format(t + 1))
         observation = env.reset()
 env.close()
+
+
+
 
