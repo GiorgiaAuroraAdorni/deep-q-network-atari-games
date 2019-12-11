@@ -137,7 +137,23 @@ def net_param(model, learning_rate, decay, k):
         optimizer = tf.train.RMSPropOptimizer(learning_rate, decay)
         train = optimizer.minimize(loss)
 
-    return X, Y, Z, loss, accuracy, train
+    return X, Y, Z, argmax_Z, loss, train, scope
+
+
+def assign_weights(online_scope, target_scope):
+    """
+
+    :param online_scope:
+    :param target_scope:
+    :return:
+    """
+    online_vars = online_scope.trainable_variables()
+    target_vars = target_scope.trainable_variables()
+
+    assigns = [tf.assign(ref, value) for ref, value in zip(target_vars, online_vars)]
+    assign = tf.group(assigns)
+
+    return assign
 
 
 class ReplayBuffer(object):
