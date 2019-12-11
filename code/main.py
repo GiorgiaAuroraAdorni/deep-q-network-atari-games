@@ -2,6 +2,8 @@ import gym
 
 ### EXAMPLE ###
 from atari_wrappers import make_atari, wrap_deepmind
+import tensorflow as tf
+import numpy as np
 
 env = gym.make('CartPole-v0')
 for i_episode in range(20):
@@ -35,6 +37,29 @@ def wrap_atari_deepmind(environment_name, clip_rewards):
     env = wrap_deepmind(env, episode_life=True, clip_rewards=clip_rewards, frame_stack=True, scale=True)
 
     return env
+
+
+class ReplayBuffer(object):
+    def __init__(self):
+        self.counter = 0
+        self.capacity = 10000
+        self.buffer = np.zeros([self.capacity, 5])
+
+    def append(self, data):
+        """
+
+        :param data:
+        :return:
+        """
+        self.buffer[self.counter] = data
+        self.counter = np.mod([self.counter + 1, self.capacity])
+
+    def sample(self, samples, datas):
+        """
+        :return:
+        """
+        idx = np.random.choice(self.capacity, samples)
+        return datas[idx]
 
 
 env_name = 'BreakoutNoFrameskip-v4'
