@@ -124,7 +124,7 @@ def net_param(model, learning_rate, decay, k):
     """
     with tf.variable_scope("model_{}".format(model)) as scope:
         X = tf.placeholder(tf.float32, [None, 84, 84, 4], name='X')
-        Y = tf.placeholder(tf.float32, [None, 10], name='Y')
+        Y = tf.placeholder(tf.float32, [None, k], name='Y')
 
         Z = conv_net(X, k)
         argmax_Z = tf.argmax(Z, axis=1)
@@ -189,7 +189,7 @@ env = wrap_atari_deepmind(env_name, clip_rewards)
 
 learning_rate = 0.0001
 decay = 0.99
-k = 10
+k = env.action_space.n
 
 gamma = 0.99  # discount factor
 n_steps = 2000000
@@ -220,7 +220,7 @@ for t in range(n_steps):
 
     if np.random.uniform(0, 1) < (1 - actual_epsilon):
         # at ← arg max_a Q(st, a; θ)
-        action = session.run(argmax_Z_o, feed_dict={X_o: observation})
+        action = session.run(argmax_Z_o, feed_dict={X_o: observation[np.newaxis, ...]})
     else:
         # at ← random action
         action = env.action_space.sample()
