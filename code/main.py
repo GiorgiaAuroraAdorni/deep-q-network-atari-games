@@ -60,6 +60,7 @@ def create_conv_layer(filter_size, stride, input_size, output_size, input):
 
     A_conv = tf.nn.conv2d(input, W_conv, strides=[1, stride, stride, 1], padding='SAME') + b_conv
 
+    # Apply activation function
     A_conv = tf.nn.relu(A_conv)
 
     return A_conv, W_conv
@@ -115,30 +116,55 @@ def conv_net(X, k):
     return A_fc2
 
 
-def net_param(model, learning_rate, decay, k):
+def net_param(model, k):
     """
 
     :param model: current model
     :param learning_rate: learning rate of the model
     :param neurons_fc: number of units for the fully connected layer
-    :return X, Y, Z, loss, accuracy, train
+    :return X, Z, argmax_Z, loss, accuracy, train
     """
     with tf.variable_scope("model_{}".format(model)) as scope:
         X = tf.placeholder(tf.float32, [None, 84, 84, 4], name='X')
-        Y = tf.placeholder(tf.float32, [None, k], name='Y')
 
         Z = conv_net(X, k)
-        argmax_Z = tf.argmax(Z, axis=1)
+        if model == 'online':
+            out = tf.argmax(Z, axis=1)
+        else:
+            out = tf.reduce_max(Z, axis=1)
 
-        # Loss function
-        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=Y, logits=Z)
-        loss = tf.reduce_mean(loss)
+    return X, Z, out, scope
 
-        # Optimiser
-        optimizer = tf.train.RMSPropOptimizer(learning_rate, decay)
-        train = optimizer.minimize(loss)
 
-    return X, Y, Z, argmax_Z, loss, train, scope
+def create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega):
+    """
+
+    :param decay:
+    :param learning_rate:
+    :param gamma:
+    :param Z_o:
+    :param a:
+    :param r:
+    :param max_Z_t:
+    :param omega1:
+    :return loss, train:
+    """
+    # if Ω′ = 1 -> y = r
+    # elif Ω′ = 0 -> y = r + γ * max_a′ Q(s′, a′; θ′)
+    y = tf.where(Omega, R, R + (gamma * max_Z_t))
+
+    # Let L(θ) = 􏰀sum􏰀_{(s, a, r, s′, Ω′) ∈ D′} (y − Q(s, a; θ))^2
+    y = tf.stop_gradient(y)  # θ ← θ − α ∇θL(θ), noting that θ′ is considered a constant with respect to θ
+    Z_o = tf.gather(Z_o, A, axis=1)
+
+    squared_diff = tf.squared_difference(y, Z_o)
+    loss = tf.reduce_sum(squared_diff)
+
+    # Optimiser
+    optimizer = tf.train.RMSPropOptimizer(learning_rate, decay)
+    train = optimizer.minimize(loss)
+
+    return loss, train
 
 
 def assign_weights(online_scope, target_scope):
@@ -161,7 +187,7 @@ class ReplayBuffer(object):
     def __init__(self):
         self.counter = 0
         self.capacity = 10000
-        self.buffer = np.zeros([self.capacity, 5])
+        self.buffer = np.empty([self.capacity, 5], dtype=object)
 
     def append(self, data):
         """
@@ -170,14 +196,14 @@ class ReplayBuffer(object):
         :return:
         """
         self.buffer[self.counter] = data
-        self.counter = np.mod([self.counter + 1, self.capacity])
+        self.counter = np.mod(self.counter + 1, self.capacity)
 
-    def sample(self, datas):
+    def sample(self, B):
         """
         :return:
         """
-        idx = np.random.choice(self.capacity, 32)
-        return datas[idx]
+        idx = np.random.choice(self.capacity, B)
+        return self.buffer[idx]
 
 
 ################################################################################
@@ -198,12 +224,22 @@ s_epsilon = 1  # starting exploration rate
 f_epsilon = 0.1  # final exploration rate
 exploration_steps = 1000000
 
+C = 10000
+n = 4
+B = 32
+
 # Initialize replay buffer D, which stores at most M tuples
 replay_buffer = ReplayBuffer()
 
 # Initialize network parameters θ randomly
-X_o, Y_o, Z_o, argmax_Z_o, loss_o, train_o, online_scope = net_param('online', learning_rate, decay, k)
-X_t, Y_t, Z_t, argmax_Z_t, loss_t, train_t, target_scope = net_param('target', learning_rate, decay, k)
+X_o, Z_o, argmax_Z_o, online_scope = net_param('online', k)
+X_t, Z_t, max_Z_t, target_scope = net_param('target', k)
+
+A = tf.placeholder(tf.int32, [B], name='a')
+R = tf.placeholder(tf.float32, [B], name='r')
+Omega = tf.placeholder(tf.bool, [B], name='omega1')
+
+loss, train = create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega)
 
 # Avoid allocating all GPU memory upfront.
 config = tf.ConfigProto()
@@ -213,9 +249,14 @@ session = tf.Session(config=config)
 session.run(tf.global_variables_initializer())
 
 # Training
-observation = env.reset()  # start new episode
+done = True
+
 for t in range(n_steps):
-    env.render()  # render a frame for a certain number of steps
+    if done:
+        print("Episode finished after {} timesteps".format(t + 1))
+        observation = env.reset()
+
+    # env.render()  # render a frame for a certain number of steps
 
     actual_epsilon = np.interp(t, [0, exploration_steps], [s_epsilon, f_epsilon])
 
@@ -227,24 +268,31 @@ for t in range(n_steps):
         action = env.action_space.sample()
 
     old_observation = observation
-    observation, reward, done, info = env.step(action)  # take a random action
 
-    # replay_buffer.append([old_observation, action, reward, observation, done])
+    # Obtain the next state and reward by taking action at
+    observation, reward, done, info = env.step(action)
 
-    # FIXME: The networks are not updated until the replay buffer is populated with M = 10000 transitions.
+    # Store the tuple (st, at, rt+1, st+1, Ωt+1) in the replay buffer D
+    replay_buffer.append([old_observation, action, reward, observation, done])
 
-    # Every n = 4 steps, sample a batch composed of B = 32 transitions from the replay buffer.
-    # FIXME: Using this batch, update the parameters of the online Q-network to minimize the loss L(θ).
-    if t % 4 == 0:
-        # batch = replay_buffer.sample(observation)
-        print()
-    # Every C = 10, 000 steps, copy the parameters of the online network to the target network.
-    if t % 10000 == 0:
-        assign = assign_weights(online_scope, target_scope)  # FIXME: execute this every C steps
+    # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
+    if t >= C:
+        # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples (transitions) from the replay buffer
+        if t % n == 0:
+            batch = replay_buffer.sample(B)
+            s = np.array(batch[:, 0].tolist())
+            a = np.array(batch[:, 1], dtype=np.int)
+            r = np.array(batch[:, 2], dtype=np.float)
+            s1 = np.array(batch[:, 3].tolist())
+            omega1 = np.array(batch[:, 4], dtype=np.bool)
 
-    if done:
-        print("Episode finished after {} timesteps".format(t + 1))
-        observation = env.reset()
+            # Using this batch, update the parameters of the online Q-network to minimize the loss L(θ).
+            batch_loss = session.run(loss, feed_dict={X_o: s, A: a, R: r, X_t: s1, Omega: omega1})
+            print(batch_loss)
+    # Every C = 10000 steps, copy the parameters of the online network to the target network.
+    if t % C == 0:
+        assign = assign_weights(online_scope, target_scope)
+
 env.close()
 
 
