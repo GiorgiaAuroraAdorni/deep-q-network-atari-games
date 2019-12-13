@@ -1,21 +1,22 @@
-import gym
+import numpy as np
+import tensorflow as tf
+
+from atari_wrappers import make_atari, wrap_deepmind
+
 
 ### EXAMPLE ###
-from atari_wrappers import make_atari, wrap_deepmind
-import tensorflow as tf
-import numpy as np
 
-env = gym.make('CartPole-v0')
-for i_episode in range(20):
-    observation = env.reset()  # start new episode
-    for t in range(100):
-        print(observation)
-        env.render()  # render a frame for a certain number of steps
-        observation, reward, done, info = env.step(env.action_space.sample())  # take a random action
-        if done:
-            print("Episode finished after {} timesteps".format(t + 1))
-            break
-env.close()
+# env = gym.make('CartPole-v0')
+# for i_episode in range(20):
+#     observation = env.reset()  # start new episode
+#     for t in range(100):
+#         print(observation)
+#         env.render()  # render a frame for a certain number of steps
+#         observation, reward, done, info = env.step(env.action_space.sample())  # take a random action
+#         if done:
+#             print("Episode finished after {} timesteps".format(t + 1))
+#             break
+# env.close()
 
 ###############
 
