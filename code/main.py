@@ -1,8 +1,28 @@
+import os
+import time
+
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from atari_wrappers import make_atari, wrap_deepmind
 
+
+## Global TensorFlow Configuration
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+
+# Instruct TensorFlow to use only the first GPU of the system.
+gpu_devices = gpu_devices[2:3]
+tf.config.experimental.set_visible_devices(gpu_devices, 'GPU')
+
+# Avoid allocating all GPU memory upfront.
+for device in gpu_devices:
+    tf.config.experimental.set_memory_growth(device, True)
+
+# Instruct the Linux kernel to preferably kill this process instead of its
+# ancestors in an OOM situation. This prevents cases in which the SSH server is
+# killed, blocking any further access to the machine.
+with open('/proc/self/oom_score_adj', 'w') as f:
+    f.write('1000\n')
 
 ### EXAMPLE ###
 
