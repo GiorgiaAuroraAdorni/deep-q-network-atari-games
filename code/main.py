@@ -41,6 +41,14 @@ with open('/proc/self/oom_score_adj', 'w') as f:
 ###############
 
 
+def check_dir(directory):
+    """
+    :param directory: path to the directory
+    """
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
 def wrap_atari_deepmind(environment_name, clip_rewards):
     """
     Receive the environment name and the boolean variable for clipping the reward, that should only be clipped
@@ -151,7 +159,7 @@ def net_param(model, k):
         if model == 'online':
             out = tf.argmax(Z, axis=1)
         else:
-            out = tf.reduce_max(Z, axis=1)
+            out = tf.reduce_max(Z, axis=1, keepdims=True)
 
     return X, Z, out, scope
 
@@ -175,7 +183,7 @@ def create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega):
 
     # Let L(θ) = 􏰀sum􏰀_{(s, a, r, s′, Ω′) ∈ D′} (y − Q(s, a; θ))^2
     y = tf.stop_gradient(y)  # θ ← θ − α ∇θL(θ), noting that θ′ is considered a constant with respect to θ
-    Z_o = tf.gather(Z_o, A, axis=1)
+    Z_o = tf.gather(Z_o, A, axis=1, batch_dims=1)
 
     squared_diff = tf.squared_difference(y, Z_o)
     loss = tf.reduce_sum(squared_diff)
@@ -226,25 +234,58 @@ class ReplayBuffer(object):
         return self.buffer[idx]
 
 
+def epsilon_greedy_policy(epsilon, observation, env):
+    """
+
+    :param epsilon:
+    :param observation:
+    :return action:
+    """
+    if np.random.uniform(0, 1) < (1 - epsilon):
+        # at ← arg max_a Q(st, a; θ)
+        action = session.run(argmax_Z_o, feed_dict={X_o: observation[np.newaxis, ...]})
+    else:
+        # at ← random action
+        action = env.action_space.sample()
+
+    return action
+
+
+def moving_average(values, window=30) :
+    """
+
+    :param values:
+    :param window:
+    :return moving_average:
+    """
+    cumsum = np.cumsum(values, dtype=float)
+    cumsum[window:] = cumsum[window:] - cumsum[:-window]
+
+    moving_average = cumsum[window - 1:] / values
+
+    return moving_average
+
+
 ################################################################################
 
-
+model = 'm1'
 env_name = 'BreakoutNoFrameskip-v4'
-clip_rewards = True
 
-env = wrap_atari_deepmind(env_name, clip_rewards)
+env = wrap_atari_deepmind(env_name, True)
+eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
-learning_rate = 0.0001
+learning_rate = 0.000_1
 decay = 0.99
 k = env.action_space.n
 
 gamma = 0.99  # discount factor
-n_steps = 2000000
+n_steps = 2_000_000
 s_epsilon = 1  # starting exploration rate
 f_epsilon = 0.1  # final exploration rate
-exploration_steps = 1000000
+exploration_steps = 1_000_000
+evaluation = 100_000
 
-C = 10000
+C = 10_000
 n = 4
 B = 32
 
@@ -255,45 +296,62 @@ replay_buffer = ReplayBuffer()
 X_o, Z_o, argmax_Z_o, online_scope = net_param('online', k)
 X_t, Z_t, max_Z_t, target_scope = net_param('target', k)
 
-A = tf.placeholder(tf.int32, [B], name='a')
-R = tf.placeholder(tf.float32, [B], name='r')
-Omega = tf.placeholder(tf.bool, [B], name='omega1')
+A = tf.placeholder(tf.int32, [B, 1], name='a')
+R = tf.placeholder(tf.float32, [B, 1], name='r')
+Omega = tf.placeholder(tf.bool, [B, 1], name='omega1')
 
 loss, train = create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega)
 
-# Avoid allocating all GPU memory upfront.
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-
-session = tf.Session(config=config)
+session = tf.Session()
 session.run(tf.global_variables_initializer())
 
+writer = tf.summary.FileWriter("var/tensorboard", session.graph)
+
 # Training
+check_dir('out/' + model)
+
+f_train = open('out/' + model + '/train.txt', "w")
+f_train.write('step,episode,reward\n')
+
+f_loss = open('out/' + model + '/loss.txt', "w")
+f_loss.write('step,episode,loss\n')
+
 done = True
+episode = 0
+ret = 0
+returns = []
 
 for t in range(n_steps):
+    step_start = time.time()
+    if t % 1000 == 0:
+        print('Step: {}.'.format(t))
+
     if done:
         print("Episode finished after {} timesteps".format(t + 1))
+        episode += 1
         observation = env.reset()
+
+        # compute the return for the current episode
+        returns.append(ret)
+        ret = 0
 
     # env.render()  # render a frame for a certain number of steps
 
     actual_epsilon = np.interp(t, [0, exploration_steps], [s_epsilon, f_epsilon])
 
-    if np.random.uniform(0, 1) < (1 - actual_epsilon):
-        # at ← arg max_a Q(st, a; θ)
-        action = session.run(argmax_Z_o, feed_dict={X_o: observation[np.newaxis, ...]})
-    else:
-        # at ← random action
-        action = env.action_space.sample()
+    action = epsilon_greedy_policy(actual_epsilon, observation, env)
 
     old_observation = observation
 
     # Obtain the next state and reward by taking action at
     observation, reward, done, info = env.step(action)
+    ret += reward
 
     # Store the tuple (st, at, rt+1, st+1, Ωt+1) in the replay buffer D
     replay_buffer.append([old_observation, action, reward, observation, done])
+
+    # monitor the number of steps elapsed, the number of episodes elapsed, and the reward obtained at each step
+    f_train.write(str(t) + ', ' + str(episode) + ',' + str(reward) + '\n')
 
     # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
     if t >= C:
@@ -301,20 +359,61 @@ for t in range(n_steps):
         if t % n == 0:
             batch = replay_buffer.sample(B)
             s = np.array(batch[:, 0].tolist())
-            a = np.array(batch[:, 1], dtype=np.int)
-            r = np.array(batch[:, 2], dtype=np.float)
+            a = np.array(batch[:, 1], dtype=np.int)[..., np.newaxis]
+            r = np.array(batch[:, 2], dtype=np.float)[..., np.newaxis]
             s1 = np.array(batch[:, 3].tolist())
-            omega1 = np.array(batch[:, 4], dtype=np.bool)
+            omega1 = np.array(batch[:, 4], dtype=np.bool)[..., np.newaxis]
 
             # Using this batch, update the parameters of the online Q-network to minimize the loss L(θ).
             batch_loss = session.run(loss, feed_dict={X_o: s, A: a, R: r, X_t: s1, Omega: omega1})
-            print(batch_loss)
+            if t % 1000 == 0:
+                print('loss ', batch_loss)
+            f_train.write(str(t) + ', ' + str(episode) + ',' + str(batch_loss) + '\n')
+
     # Every C = 10000 steps, copy the parameters of the online network to the target network.
     if t % C == 0:
         assign = assign_weights(online_scope, target_scope)
 
-env.close()
+    step_end = time.time()
+    step_time = step_end - step_start
 
+    # estimate the remaining training time based on the average time that each step requires
+    remaining_training_time = step_time * (n_steps - t)
+    if t % 1000 == 0:
+        print("Remaining_training_time: {} sec.".format(remaining_training_time))
 
+    # Evaluation
+    if t % evaluation == 0:
+        # You should sum the return obtained across 5 different episodes so that you can compare your results to those
+        # listed by Mnih et al. (2015).
+        n_play = 30
+        n_episode = 5
+        score = 0  # sum of returns
 
+        for play in range(n_play):  # a sequence of 5 episodes is a play
+            for episode in range(n_episode):
+                eval_observation = eval_env.reset()
+                eval_done = False
+
+                while not eval_done:
+                    # every 100,000 steps (20 times in total), evaluate an ε-greedy policy based on your learned
+                    # Q-function with ε = 0.001
+                    eval_action = epsilon_greedy_policy(0.001, eval_observation, eval_env)
+
+                    eval_observation, eval_reward, eval_done, eval_info = eval_env.step(eval_action)
+                    score += eval_reward
+
+        # average the scores across 30 independent plays before
+        score /= n_play
+
+        # plot the value of the score
+        print('Score: ', score)
+
+# return per episode, averaged over the last 30 episodes to reduce noise (moving average).
+f_moving_average = open('out/' + model + '/moving_average.txt', "w")
+f_moving_average.write('moving average\n')
+
+moving_avg = moving_average(returns)
+for el in moving_avg():
+    f_moving_average.write(el + '\n')
 
