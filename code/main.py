@@ -301,6 +301,7 @@ R = tf.placeholder(tf.float32, [B, 1], name='r')
 Omega = tf.placeholder(tf.bool, [B, 1], name='omega1')
 
 loss, train = create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega)
+assign = assign_weights(online_scope, target_scope)
 
 session = tf.Session()
 session.run(tf.global_variables_initializer())
@@ -370,15 +371,15 @@ for t in range(n_steps):
                 print('loss ', batch_loss)
             f_train.write(str(t) + ', ' + str(episode) + ',' + str(batch_loss) + '\n')
 
-    # Every C = 10000 steps, copy the parameters of the online network to the target network.
-    if t % C == 0:
-        assign = assign_weights(online_scope, target_scope)
+        # Every C = 10000 steps, copy the parameters of the online network to the target network.
+        if t % C == 0:
+            session.run(assign)
 
     step_end = time.time()
     step_time = step_end - step_start
-
     # estimate the remaining training time based on the average time that each step requires
     remaining_training_time = step_time * (n_steps - t)
+
     if t % 1000 == 0:
         print("Remaining_training_time: {} sec.".format(remaining_training_time))
 
