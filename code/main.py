@@ -317,6 +317,9 @@ f_train.write('step,episode,reward\n')
 f_loss = open('out/' + model + '/loss.txt', "w")
 f_loss.write('step,episode,loss\n')
 
+f_scrore = open('out/' + model + '/score.txt', "w")
+f_scrore.write('step,episode,score\n')
+
 done = True
 episode = 0
 ret = 0
@@ -328,7 +331,7 @@ for t in range(n_steps):
         print('Step: {}.'.format(t))
 
     if done:
-        print("Episode finished after {} timesteps".format(t + 1))
+        # print("Episode finished after {} timesteps".format(t + 1))
         episode += 1
         observation = env.reset()
 
@@ -344,7 +347,7 @@ for t in range(n_steps):
 
     old_observation = observation
 
-    # Obtain the next state and reward by taking action at
+    # Obtain the next state and reward by taking action
     observation, reward, done, info = env.step(action)
     ret += reward
 
