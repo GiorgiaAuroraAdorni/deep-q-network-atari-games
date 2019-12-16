@@ -48,6 +48,9 @@ class ReplayBuffer(object):
         idx = np.random.choice(self.capacity, B)
         return self.buffer[idx]
 
+    def is_full(self):
+        return self.counter == self.capacity
+
 
 def check_dir(directory):
     """
@@ -173,17 +176,17 @@ def net_param(model, k):
     return X, Z, out, scope
 
 
-def create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega):
+def create_loss(Z_o, A, R, max_Z_t, Omega, decay=0.99, learning_rate=0.000_1, gamma=0.99):
     """
 
+    :param Z_o:
+    :param A:
+    :param R:
+    :param max_Z_t:
+    :param Omega:
     :param decay:
     :param learning_rate:
     :param gamma:
-    :param Z_o:
-    :param a:
-    :param r:
-    :param max_Z_t:
-    :param omega1:
     :return loss, train:
     """
     # if Ω′ = 1 -> y = r
@@ -328,7 +331,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
         f_train.write(str(t) + ', ' + str(episode) + ',' + str(reward) + '\n')
 
         # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
-        if t >= C:
+        if replay_buffer.is_full():
             # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples (transitions) from the replay buffer
             if t % n == 0:
                 batch = replay_buffer.sample(B)
@@ -379,13 +382,8 @@ def main(model, env_name):
     env = wrap_atari_deepmind(env_name, True)
     eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
-    learning_rate = 0.000_1
-    decay = 0.99
     k = env.action_space.n
-    gamma = 0.99
-
     B = 32
-
 
     # Initialize replay buffer D, which stores at most M tuples
     replay_buffer = ReplayBuffer()
@@ -398,7 +396,7 @@ def main(model, env_name):
     R = tf.placeholder(tf.float32, [B, 1], name='r')
     Omega = tf.placeholder(tf.bool, [B, 1], name='omega1')
 
-    loss, train = create_loss(decay, learning_rate, gamma, Z_o, A, R, max_Z_t, Omega)
+    loss, train = create_loss(Z_o, A, R, max_Z_t, Omega)
 
     assign = assign_weights(online_scope, target_scope)
 
