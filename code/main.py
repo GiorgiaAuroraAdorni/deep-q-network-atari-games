@@ -22,8 +22,8 @@ for device in gpu_devices:
 # ancestors in an OOM situation. This prevents cases in which the SSH server is
 # killed, blocking any further access to the machine.
 # FIXME
-with open('/proc/self/oom_score_adj', 'w') as f:
-    f.write('1000\n')
+# with open('/proc/self/oom_score_adj', 'w') as f:
+#     f.write('1000\n')
 
 
 class ReplayBuffer(object):
@@ -49,7 +49,14 @@ class ReplayBuffer(object):
         return self.buffer[idx]
 
     def is_full(self):
-        return self.counter == self.capacity
+        """
+
+        :return:
+        """
+        if self.buffer[-1].all() == np.empty([1, 5], dtype=object).all():
+            return False
+        else:
+            return True
 
 
 def check_dir(directory):
@@ -250,7 +257,7 @@ def moving_average(values, window=30):
     cumsum = np.cumsum(values, dtype=float)
     cumsum[window:] = cumsum[window:] - cumsum[:-window]
 
-    moving_average = cumsum[window - 1:] / values
+    moving_average = cumsum[window - 1:] / window
 
     return moving_average
 
@@ -291,8 +298,8 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
 
 
 def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_scrore, loss, train, assign, X_o, A,
-                R, X_t, Omega, B, argmax_Z_o, done=True, n_steps=2_000_000 + 1, episode=0, total_steps_time=0,
-                exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, C=10_000, n=4, ret=0,
+                R, X_t, Omega, B, argmax_Z_o, done=True, n_steps=11_000 + 1, episode=0, total_steps_time=0,
+                exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, C=10_000, n=4, ret=0.0,
                 returns=None):
 
     if returns is None:
@@ -310,7 +317,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
 
             # compute the return for the current episode
             returns.append(ret)
-            ret = 0
+            ret = 0.0
 
         # env.render()  # render a frame for a certain number of steps
 
@@ -323,6 +330,8 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
         # Obtain the next state and reward by taking action
         observation, reward, done, info = env.step(action)
         ret += reward
+        if reward > 0:
+            print()
 
         # Store the tuple (st, at, rt+1, st+1, Ωt+1) in the replay buffer D
         replay_buffer.append([old_observation, action, reward, observation, done])
@@ -333,7 +342,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
         # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
         if replay_buffer.is_full():
             # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples (transitions) from the replay buffer
-            if t % n == 0:
+            if t + 1 % n == 0:
                 batch = replay_buffer.sample(B)
                 s = np.array(batch[:, 0].tolist())
                 a = np.array(batch[:, 1], dtype=np.int)[..., np.newaxis]
@@ -351,11 +360,13 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
             if t % C == 0:
                 session.run(assign)
 
-            # Save a checkpoint
-            saver.save(session, 'train/')
+                # Save a checkpoint
+                print('Saving model…')
+                saver.save(session, 'train/')
 
             # Evaluation
             if t % evaluation == 0:
+                print('Evaluation…')
                 evaluate_model(session, argmax_Z_o, X_o, t, evaluation, eval_env, f_scrore)
 
         # Estimate the remaining training time based on the average time that each step requires
@@ -374,8 +385,10 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
     f_moving_average.write('moving average\n')
     moving_avg = moving_average(returns)
 
-    for el in moving_avg():
-        f_moving_average.write(el + '\n')
+    for el in moving_avg:
+        f_moving_average.write(str(el) + '\n')
+
+    f_moving_average.close()
 
 
 def main(model, env_name):
@@ -433,6 +446,9 @@ def main(model, env_name):
     writer.close()
     session.close()
 
+    f_train.close()
+    f_loss.close()
+    f_scrore.close()
 
     # TODO: Repeat Steps 4-5 for a different Atari game.
 
