@@ -27,9 +27,9 @@ with open('/proc/self/oom_score_adj', 'w') as f:
 
 
 class ReplayBuffer(object):
-    def __init__(self):
-        self.counter = 0
-        self.capacity = 10000
+    def __init__(self, counter=0, capacity=10000):
+        self.counter = counter
+        self.capacity = capacity
         self.buffer = np.empty([self.capacity, 5], dtype=object)
 
     def append(self, data):
@@ -220,7 +220,7 @@ def assign_weights(online_scope, target_scope):
     return assign
 
 
-def epsilon_greedy_policy(epsilon, observation, env):
+def epsilon_greedy_policy(session, argmax_Z_o, X_o, epsilon, observation, env):
     """
 
     :param epsilon:
@@ -252,7 +252,7 @@ def moving_average(values, window=30):
     return moving_average
 
 
-def evaluate_model(t, episode, eval_env, f_scrore):
+def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
     """
 
     :param t:
@@ -274,7 +274,7 @@ def evaluate_model(t, episode, eval_env, f_scrore):
             while not eval_done:
                 # every 100,000 steps (20 times in total), evaluate an ε-greedy policy based on your learned
                 # Q-function with ε = 0.001
-                eval_action = epsilon_greedy_policy(0.001, eval_observation, eval_env)
+                eval_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, eval_observation, eval_env)
 
                 eval_observation, eval_reward, eval_done, eval_info = eval_env.step(eval_action)
                 score += eval_reward
@@ -288,7 +288,7 @@ def evaluate_model(t, episode, eval_env, f_scrore):
 
 
 def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_scrore, loss, train, assign, X_o, A,
-                R, X_t, Omega, B, done=True, n_steps=2_000_000 + 1, episode=0, total_steps_time=0,
+                R, X_t, Omega, B, argmax_Z_o, done=True, n_steps=2_000_000 + 1, episode=0, total_steps_time=0,
                 exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, C=10_000, n=4, ret=0,
                 returns=None):
 
@@ -313,7 +313,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
 
         actual_epsilon = np.interp(t, [0, exploration_steps], [s_epsilon, f_epsilon])
 
-        action = epsilon_greedy_policy(actual_epsilon, observation, env)
+        action = epsilon_greedy_policy(session, argmax_Z_o, X_o, actual_epsilon, observation, env)
 
         old_observation = observation
 
@@ -353,7 +353,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
 
             # Evaluation
             if t % evaluation == 0:
-                evaluate_model(t, evaluation, eval_env, f_scrore)
+                evaluate_model(session, argmax_Z_o, X_o, t, evaluation, eval_env, f_scrore)
 
         # Estimate the remaining training time based on the average time that each step requires
         step_end = time.time()
@@ -420,7 +420,7 @@ def main(model, env_name):
     f_scrore.write('step,episode,score\n')
 
     train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_scrore, loss, train, assign, X_o, A,
-                R, X_t, Omega, B)
+                R, X_t, Omega, B, argmax_Z_o)
 
     # TODO: After training, render one episode of interaction between your agent and the environment.
     #  For this purpose, you may wrap your environment using a gym.wrappers.Monitor.
