@@ -1,12 +1,13 @@
 import os
 import time
+from collections import Counter
 
 import gym
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow.compat.v1 as tf
 
 from atari_wrappers import make_atari, wrap_deepmind
-
 
 ## Global TensorFlow Configuration
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -266,7 +267,7 @@ def moving_average(values, window=30):
     return moving_average
 
 
-def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
+def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score):
     """
 
     :param session:
@@ -302,13 +303,13 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
 
     # plot the value of the score
     print('Score: ', score)
-    f_scrore.write(str(t) + ', ' + str(episode) + ',' + str(score) + '\n')
+    f_score.write(str(t) + ', ' + str(episode) + ',' + str(score) + '\n')
 
 
-def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train, assign, X_o, A,
-                R, X_t, Omega, B, argmax_Z_o, C, done=True, n_steps=11_000 + 1, episode=0, total_steps_time=0,
-                exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, n=4, ret=0.0,
-                returns=None):
+def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score, loss,
+                train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, done=True, n_steps=101_000 + 1, episode=0,
+                total_steps_time=0, exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, n=4,
+                ret=0.0, returns=None):
     """
 
     :param model:
@@ -350,6 +351,8 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f
 
     for t in range(n_steps):
         step_start = time.time()
+        f_step_episode.write(str(t) + ', ' + str(episode) + '\n')
+
         if t % 1000 == 0:
             print('Step: {}.'.format(t))
 
@@ -385,7 +388,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f
         # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
         if replay_buffer.is_full():
             # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples (transitions) from the replay buffer
-            if t + 1 % n == 0:
+            if t % n == 0:
                 batch = replay_buffer.sample(B)
                 s = np.array(batch[:, 0].tolist())
                 a = np.array(batch[:, 1], dtype=np.int)[..., np.newaxis]
@@ -438,6 +441,32 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f
     f_moving_average.close()
 
 
+def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
+    """
+
+    :param X_o:
+    :param argmax_Z_o:
+    :param eval_env:
+    :param session:
+    :param video_dir:
+    :return test_env:
+    """
+    # Wrap the environment using a gym.wrappers.Monitor.
+    test_env = gym.wrappers.Monitor(eval_env, video_dir, video_callable=lambda _: True, mode="evaluation", force=True)
+
+    for _ in range(10):
+        test_observation = test_env.reset()
+        test_done = False
+
+        while not test_done:
+            test_env.render()
+            test_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, test_observation, test_env)
+
+            test_observation, test_reward, test_done, test_info = test_env.step(test_action)
+
+    return test_env
+
+
 def main(model, env_name, do_train, C):
     """
 
@@ -477,7 +506,10 @@ def main(model, env_name, do_train, C):
     if do_train:
         check_dir('out/' + model)
 
-        f_reward = open('out/' + model + '/train.txt', "w")
+        f_step_episode = open('out/' + model + '/step-per-episode.txt', "w")
+        f_step_episode.write('step,episode\n')
+
+        f_reward = open('out/' + model + '/reward.txt', "w")
         f_reward.write('step,episode,reward\n')
 
         f_loss = open('out/' + model + '/loss.txt', "w")
@@ -486,33 +518,21 @@ def main(model, env_name, do_train, C):
         f_score = open('out/' + model + '/score.txt', "w")
         f_score.write('step,episode,score\n')
 
-        train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train,
-                    assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C)
+        train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score,
+                    loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C)
 
     # After training, render one episode of interaction between your agent and the environment.
     print('\nRendering one episode of interaction between the agent and the environment…')
     video_dir = 'out/' + model + '/video'
     check_dir(video_dir)
-    # Wrap the environment using a gym.wrappers.Monitor.
-    test_env = gym.wrappers.Monitor(eval_env, video_dir, video_callable=lambda _: True, mode="evaluation", force=True)
 
-    for _ in range(10):
-        test_observation = test_env.reset()
-        test_done = False
-
-        while not test_done:
-            test_env.render()
-            test_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, test_observation, test_env)
-
-            test_observation, test_reward, test_done, test_info = test_env.step(test_action)
+    test_env = test_model(X_o, argmax_Z_o, eval_env, session, video_dir)
 
     env.close()
     eval_env.close()
     test_env.close()
     writer.close()
     session.close()
-
-
 
     # TODO: Write your own wrapper for an Atari game. This wrapper should transform observations or rewards in order to
     #  make it much easier for Algorithm 1 to find a high-scoring policy.
@@ -522,9 +542,141 @@ def main(model, env_name, do_train, C):
     #  Compute the average score obtained by the resulting agent.
 
 
+def plot_step_per_episode(model):
+    """
+
+    :param model:
+    :return:
+    """
+    out_dir = 'out/' + model + '/img/'
+    check_dir(out_dir)
+
+    input_dir = 'out/' + model + '/step-per-episode.txt'
+
+    episodes = []
+
+    with open(input_dir, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            # step = np.append(step, float(el[0]))
+            episodes = np.append(episodes, float(el[1]))
+
+    episode_counter = Counter(episodes)
+
+    plt.xlabel('step', fontsize=11)
+    plt.ylabel('episode', fontsize=11)
+
+    plt.plot(list(episode_counter.keys()), list(episode_counter.values()), label='Steps per Episode')
+    plt.title('Steps per Episode: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'step-per-episode.pdf')
+    plt.show()
+    plt.close()
+
+
+def plot_score(model):
+    out_dir = 'out/' + model + '/img/'
+    check_dir(out_dir)
+
+    input_dir = 'out/' + model + '/score.txt'
+
+    episodes = []
+
+    # x = step; y = score    per evaluation step
+
+
+def plot_reward(model):
+    out_dir = 'out/' + model + '/img/'
+    check_dir(out_dir)
+
+    input_dir = 'out/' + model + '/reward.txt'
+
+    steps = []
+    rewards = []
+
+    with open(input_dir, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            steps = np.append(steps, float(el[0]))
+            rewards = np.append(rewards, float(el[2]))
+
+    plt.xlabel('step', fontsize=11)
+    plt.ylabel('reward', fontsize=11)
+
+    plt.plot(steps, rewards, label='Reward')
+    plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'reward.pdf')
+    plt.show()
+    plt.close()
+
+
+def plot_loss(model):
+    out_dir = 'out/' + model + '/img/'
+    check_dir(out_dir)
+
+    input_dir = 'out/' + model + '/loss.txt'
+
+    steps = []
+    losses = []
+
+    with open(input_dir, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            steps = np.append(steps, float(el[0]))
+            losses = np.append(losses, float(el[2]))
+
+    plt.xlabel('step', fontsize=11)
+    plt.ylabel('loss', fontsize=11)
+
+    plt.plot(steps, losses, label='Loss')
+    plt.title('Loss: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'loss.pdf')
+    plt.show()
+    plt.close()
+
+
+def plot_moving_average(model):
+    out_dir = 'out/' + model + '/img/'
+    check_dir(out_dir)
+
+    input_dir = 'out/' + model + '/moving_average.txt'
+
+    moving_averages = []
+
+    with open(input_dir, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            moving_averages = np.append(moving_averages, float(el[0]))
+
+    episodes = np.arange(30, len(moving_averages) + 30)
+
+    plt.xlabel('episodes', fontsize=11)
+    plt.ylabel('moving-average', fontsize=11)
+
+    plt.plot(episodes, moving_averages, label='Moving Average')
+    plt.title('Moving Average: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'moving-average.pdf')
+    plt.show()
+    plt.close()
+
+
 if __name__ == '__main__':
 
     # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
+
+    plot_step_per_episode(model='m1')
+    # plot_score(model='m1')
+    plot_reward(model='m1')
+    plot_loss(model='m1')
+    plot_moving_average(model='m1')
+
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
 
     # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
@@ -533,6 +685,4 @@ if __name__ == '__main__':
     # How do you explain the differences?
 
     # Experiment with a different Atari game.
-    main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False, C=10_000)
-
-
+    # main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False, C=10_000)
