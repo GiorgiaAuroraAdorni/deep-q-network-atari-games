@@ -168,9 +168,8 @@ def net_param(model, k):
     """
 
     :param model: current model
-    :param learning_rate: learning rate of the model
-    :param neurons_fc: number of units for the fully connected layer
-    :return X, Z, argmax_Z, loss, accuracy, train
+    :param k:
+    :return X, Z, out, scope
     """
     with tf.variable_scope("model_{}".format(model)) as scope:
         X = tf.placeholder(tf.float32, [None, 84, 84, 4], name='X')
@@ -234,8 +233,12 @@ def assign_weights(online_scope, target_scope):
 def epsilon_greedy_policy(session, argmax_Z_o, X_o, epsilon, observation, env):
     """
 
+    :param session:
+    :param argmax_Z_o:
+    :param X_o:
     :param epsilon:
     :param observation:
+    :param env:
     :return action:
     """
     if np.random.uniform(0, 1) < (1 - epsilon):
@@ -266,9 +269,13 @@ def moving_average(values, window=30):
 def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
     """
 
+    :param session:
+    :param argmax_Z_o:
+    :param X_o:
     :param t:
     :param episode:
     :param eval_env:
+    :param f_scrore:
     :return:
     """
     # You should sum the return obtained across 5 different episodes so that you can compare your results to those
@@ -299,9 +306,44 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
 
 
 def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train, assign, X_o, A,
-                R, X_t, Omega, B, argmax_Z_o, done=True, n_steps=11_000 + 1, episode=0, total_steps_time=0,
-                exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, C=10_000, n=4, ret=0.0,
+                R, X_t, Omega, B, argmax_Z_o, C, done=True, n_steps=11_000 + 1, episode=0, total_steps_time=0,
+                exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, n=4, ret=0.0,
                 returns=None):
+    """
+
+    :param model:
+    :param session:
+    :param saver:
+    :param env:
+    :param eval_env:
+    :param replay_buffer:
+    :param f_reward:
+    :param f_loss:
+    :param f_score:
+    :param loss:
+    :param train:
+    :param assign:
+    :param X_o:
+    :param A:
+    :param R:
+    :param X_t:
+    :param Omega:
+    :param B:
+    :param argmax_Z_o:
+    :param C:
+    :param done:
+    :param n_steps:
+    :param episode:
+    :param total_steps_time:
+    :param exploration_steps:
+    :param s_epsilon:
+    :param f_epsilon:
+    :param evaluation:
+    :param n:
+    :param ret:
+    :param returns:
+    :return:
+    """
 
     if returns is None:
         returns = []
@@ -396,7 +438,15 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f
     f_moving_average.close()
 
 
-def main(model, env_name, do_train):
+def main(model, env_name, do_train, C):
+    """
+
+    :param model:
+    :param env_name:
+    :param do_train:
+    :param C:
+    :return:
+    """
     env = wrap_atari_deepmind(env_name, True)
     eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
@@ -436,8 +486,8 @@ def main(model, env_name, do_train):
         f_score = open('out/' + model + '/score.txt', "w")
         f_score.write('step,episode,score\n')
 
-        train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train, 
-                    assign, X_o, A, R, X_t, Omega, B, argmax_Z_o)
+        train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train,
+                    assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C)
 
     # TODO: After training, render one episode of interaction between your agent and the environment.
     #  For this purpose, you may wrap your environment using a gym.wrappers.Monitor.
@@ -481,4 +531,5 @@ def main(model, env_name, do_train):
 
 if __name__ == '__main__':
 
-    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
+    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
+    # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
