@@ -1,6 +1,7 @@
 import os
 import time
 
+import gym
 import numpy as np
 import tensorflow.compat.v1 as tf
 
@@ -443,11 +444,28 @@ def main(model, env_name, do_train):
     #  If your environment object is called env, interacting with the wrapped environment
     #  gym.wrappers.Monitor(env, path, force=True) will cause the corresponding video to be saved to path
 
+    print('\nRendering one episode of interaction between the agent and the environment…')
+    video_dir = 'out/' + model + '/video'
+    check_dir(video_dir)
+    test_env = gym.wrappers.Monitor(eval_env, video_dir, video_callable=lambda _: True, mode="evaluation", force=True)
+
+    for _ in range(10):
+        test_observation = test_env.reset()
+        test_done = False
+
+        while not test_done:
+            test_env.render()
+            test_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, test_observation, test_env)
+
+            test_observation, test_reward, test_done, test_info = test_env.step(test_action)
+
     # TODO: Instead of updating the target network every C = 10, 000 steps, experiment with C = 50, 000. Compare in a
     #  single plot the average score across evaluations obtained by these two alternatives.
     #  How do you explain the differences?
 
     env.close()
+    eval_env.close()
+    test_env.close()
     writer.close()
     session.close()
 
