@@ -297,7 +297,7 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_scrore):
     f_scrore.write(str(t) + ', ' + str(episode) + ',' + str(score) + '\n')
 
 
-def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_scrore, loss, train, assign, X_o, A,
+def train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train, assign, X_o, A,
                 R, X_t, Omega, B, argmax_Z_o, done=True, n_steps=11_000 + 1, episode=0, total_steps_time=0,
                 exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, C=10_000, n=4, ret=0.0,
                 returns=None):
@@ -337,7 +337,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
         replay_buffer.append([old_observation, action, reward, observation, done])
 
         # monitor the number of steps elapsed, the number of episodes elapsed, and the reward obtained at each step
-        f_train.write(str(t) + ', ' + str(episode) + ',' + str(reward) + '\n')
+        f_reward.write(str(t) + ', ' + str(episode) + ',' + str(reward) + '\n')
 
         # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
         if replay_buffer.is_full():
@@ -354,7 +354,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
                 batch_loss, _ = session.run([loss, train], feed_dict={X_o: s, A: a, R: r, X_t: s1, Omega: omega1})
                 if t % 1000 == 0:
                     print('loss ', batch_loss)
-                f_train.write(str(t) + ', ' + str(episode) + ',' + str(batch_loss) + '\n')
+                f_loss.write(str(t) + ', ' + str(episode) + ',' + str(batch_loss) + '\n')
 
             # Every C = 10000 steps, copy the parameters of the online network to the target network.
             if t % C == 0:
@@ -367,7 +367,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
             # Evaluation
             if t % evaluation == 0:
                 print('Evaluation…')
-                evaluate_model(session, argmax_Z_o, X_o, t, evaluation, eval_env, f_scrore)
+                evaluate_model(session, argmax_Z_o, X_o, t, evaluation, eval_env, f_score)
 
         # Estimate the remaining training time based on the average time that each step requires
         step_end = time.time()
@@ -380,6 +380,10 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
         if t % 1000 == 0:
             print("Remaining_training_time: {} sec.".format(remaining_training_time))
 
+    f_reward.close()
+    f_score.close()
+    f_loss.close()
+
     # Return per episode, averaged over the last 30 episodes to reduce noise (moving average).
     f_moving_average = open('out/' + model + '/moving_average.txt', "w")
     f_moving_average.write('moving average\n')
@@ -391,7 +395,7 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_
     f_moving_average.close()
 
 
-def main(model, env_name):
+def main(model, env_name, do_train):
     env = wrap_atari_deepmind(env_name, True)
     eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
@@ -419,19 +423,20 @@ def main(model, env_name):
     writer = tf.summary.FileWriter("var/tensorboard", session.graph)
 
     # Training
-    check_dir('out/' + model)
+    if do_train:
+        check_dir('out/' + model)
 
-    f_train = open('out/' + model + '/train.txt', "w")
-    f_train.write('step,episode,reward\n')
+        f_reward = open('out/' + model + '/train.txt', "w")
+        f_reward.write('step,episode,reward\n')
 
-    f_loss = open('out/' + model + '/loss.txt', "w")
-    f_loss.write('step,episode,loss\n')
+        f_loss = open('out/' + model + '/loss.txt', "w")
+        f_loss.write('step,episode,loss\n')
 
-    f_scrore = open('out/' + model + '/score.txt', "w")
-    f_scrore.write('step,episode,score\n')
+        f_score = open('out/' + model + '/score.txt', "w")
+        f_score.write('step,episode,score\n')
 
-    train_model(model, session, saver, env, eval_env, replay_buffer, f_train, f_scrore, loss, train, assign, X_o, A,
-                R, X_t, Omega, B, argmax_Z_o)
+        train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train, 
+                    assign, X_o, A, R, X_t, Omega, B, argmax_Z_o)
 
     # TODO: After training, render one episode of interaction between your agent and the environment.
     #  For this purpose, you may wrap your environment using a gym.wrappers.Monitor.
@@ -446,10 +451,6 @@ def main(model, env_name):
     writer.close()
     session.close()
 
-    f_train.close()
-    f_loss.close()
-    f_scrore.close()
-
     # TODO: Repeat Steps 4-5 for a different Atari game.
 
     # TODO: Write your own wrapper for an Atari game. This wrapper should transform observations or rewards in order to
@@ -462,4 +463,4 @@ def main(model, env_name):
 
 if __name__ == '__main__':
 
-    main(model='m1', env_name='BreakoutNoFrameskip-v4')
+    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
