@@ -489,14 +489,11 @@ def main(model, env_name, do_train, C):
         train_model(model, session, saver, env, eval_env, replay_buffer, f_reward, f_loss, f_score, loss, train,
                     assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C)
 
-    # TODO: After training, render one episode of interaction between your agent and the environment.
-    #  For this purpose, you may wrap your environment using a gym.wrappers.Monitor.
-    #  If your environment object is called env, interacting with the wrapped environment
-    #  gym.wrappers.Monitor(env, path, force=True) will cause the corresponding video to be saved to path
-
+    # After training, render one episode of interaction between your agent and the environment.
     print('\nRendering one episode of interaction between the agent and the environment…')
     video_dir = 'out/' + model + '/video'
     check_dir(video_dir)
+    # Wrap the environment using a gym.wrappers.Monitor.
     test_env = gym.wrappers.Monitor(eval_env, video_dir, video_callable=lambda _: True, mode="evaluation", force=True)
 
     for _ in range(10):
@@ -509,17 +506,13 @@ def main(model, env_name, do_train, C):
 
             test_observation, test_reward, test_done, test_info = test_env.step(test_action)
 
-    # TODO: Instead of updating the target network every C = 10, 000 steps, experiment with C = 50, 000. Compare in a
-    #  single plot the average score across evaluations obtained by these two alternatives.
-    #  How do you explain the differences?
-
     env.close()
     eval_env.close()
     test_env.close()
     writer.close()
     session.close()
 
-    # TODO: Repeat Steps 4-5 for a different Atari game.
+
 
     # TODO: Write your own wrapper for an Atari game. This wrapper should transform observations or rewards in order to
     #  make it much easier for Algorithm 1 to find a high-scoring policy.
@@ -531,5 +524,15 @@ def main(model, env_name, do_train, C):
 
 if __name__ == '__main__':
 
-    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
+    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
+    # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
+
     # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
+
+    # Compare in a single plot the average score across evaluations obtained by these two alternatives.
+    # How do you explain the differences?
+
+    # Experiment with a different Atari game.
+    main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False, C=10_000)
+
+
