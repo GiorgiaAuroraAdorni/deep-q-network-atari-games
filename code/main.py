@@ -43,6 +43,15 @@ class ReplayBuffer(object):
         self.buffer[self.counter] = data
         self.counter = np.mod(self.counter + 1, self.capacity)
 
+    def fill(self, data):
+        """
+
+        :param data:
+        :return:
+        """
+        self.buffer = data
+        self.counter = np.mod(self.counter + np.shape(data)[0], self.capacity)
+
     def sample(self, B):
         """
         :return:
@@ -85,6 +94,36 @@ def wrap_atari_deepmind(environment_name, clip_rewards):
     env = wrap_deepmind(env, episode_life=True, clip_rewards=clip_rewards, frame_stack=True, scale=True)
 
     return env
+
+
+def fill_buffer(replay_buffer):
+    """
+    Using record agent.py as a guide, record your personal gameplay for 10,000 steps.
+    Use this data to populate the replay buffer, and train your agent for 300,000 steps.
+    Compute the average score obtained by the resulting agent.
+    :param replay_buffer:
+    :return:
+    """
+    array = np.load('replay_buffer_FOR_STUDENTS.npy')
+
+    s = array[:, :84 * 84 * 4]
+    s = s.reshape(-1, 84, 84, 4)
+
+    a = array[:, 84 * 84 * 4 + 0]
+    a = a.astype(np.int)
+
+    r = array[:, 84 * 84 * 4 + 1]
+    r = r.astype(np.float)
+
+    omega1 = array[:, 84 * 84 * 4 + 2]
+    omega1 = omega1.astype(np.bool)
+
+    s1 = array[:, 84 * 84 * 4 + 3:]
+    s1 = s1.reshape(-1, 84, 84, 4)
+
+    data = np.array(list(zip(s, a, r, s1, omega1)))
+
+    replay_buffer.fill(data)
 
 
 def create_conv_layer(filter_size, stride, input_size, output_size, input):
@@ -306,8 +345,8 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score):
     f_score.write(str(t) + ', ' + str(episode) + ',' + str(score) + '\n')
 
 
-def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score, loss,
-                train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps, done=True, episode=0,
+def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss,
+                f_score, loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps, done=True, episode=0,
                 total_steps_time=0, exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, n=4,
                 ret=0.0, returns=None):
     """
@@ -315,9 +354,11 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_epis
     :param model:
     :param session:
     :param saver:
+    :param checkpoit_dir:
     :param env:
     :param eval_env:
     :param replay_buffer:
+    :param f_step_episode:
     :param f_reward:
     :param f_loss:
     :param f_score:
@@ -332,8 +373,8 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_epis
     :param B:
     :param argmax_Z_o:
     :param C:
-    :param done:
     :param n_steps:
+    :param done:
     :param episode:
     :param total_steps_time:
     :param exploration_steps:
@@ -406,8 +447,6 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_epis
 
                 # Save a checkpoint
                 print('Saving model…')
-                checkpoit_dir = 'out/' + model + '/train/train.ckpt'
-
                 saver.save(session, checkpoit_dir)
 
             # Evaluation
@@ -467,7 +506,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     return test_env
 
 
-def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1):
+def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1, populate=False):
     """
 
     :param model:
@@ -484,10 +523,9 @@ def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1):
 
     # Initialize replay buffer D, which stores at most M tuples
     replay_buffer = ReplayBuffer()
-    # TODO: Using record agent.py as a guide, record your personal gameplay for 10,000 steps.
-    #  Use this data to populate the replay buffer, and train your agent for 300,000 steps.
-    #  Compute the average score obtained by the resulting agent.
-    array = np.load('replay_buffer_FOR_STUDENTS.npy')
+
+    if populate:
+        fill_buffer(replay_buffer)
 
     # Initialize network parameters θ randomly
     X_o, Z_o, argmax_Z_o, online_scope = net_param('online', k)
@@ -503,6 +541,8 @@ def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1):
 
     session = tf.Session()
     saver = tf.train.Saver()
+    checkpoit_dir = 'out/' + model + '/train/train.ckpt'
+
     session.run(tf.global_variables_initializer())
     writer = tf.summary.FileWriter("var/tensorboard", session.graph)
 
@@ -522,8 +562,10 @@ def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1):
         f_score = open('out/' + model + '/score.txt', "w")
         f_score.write('step,episode,score\n')
 
-        train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score,
-                    loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps)
+        train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode, f_reward,
+                    f_loss, f_score, loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps)
+    else:
+        saver.restore(session, checkpoit_dir)
 
     # After training, render one episode of interaction between your agent and the environment.
     print('\nRendering one episode of interaction between the agent and the environment…')
@@ -740,14 +782,13 @@ def plot_score_comparison(model1, model2):
 
 if __name__ == '__main__':
 
-    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
+    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
 
     # plot_step_per_episode(model='m1')
     # plot_score(model='m1')
     # # plot_reward(model='m1')
     # plot_loss(model='m1')
-    #
-    plot_moving_average(model='m1')
+    # plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
     # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
@@ -773,8 +814,7 @@ if __name__ == '__main__':
     # plot_score_comparison(model1='m1', model2='m3')
     # plot_score_comparison(model1='m2', model2='m3')
 
-    # TODO
-    # main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000)
+    main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000, populate=True)
 
     # plot_step_per_episode(model='m4')
     # # plot_score(model='m4')
