@@ -307,7 +307,7 @@ def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score):
 
 
 def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score, loss,
-                train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, done=True, n_steps=101_000 + 1, episode=0,
+                train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps, done=True, episode=0,
                 total_steps_time=0, exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1, evaluation=100_000, n=4,
                 ret=0.0, returns=None):
     """
@@ -469,7 +469,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     return test_env
 
 
-def main(model, env_name, do_train, C):
+def main(model, env_name, do_train, C=10_000, n_steps=2_000_000 + 1):
     """
 
     :param model:
@@ -486,6 +486,10 @@ def main(model, env_name, do_train, C):
 
     # Initialize replay buffer D, which stores at most M tuples
     replay_buffer = ReplayBuffer()
+    # TODO: Using record agent.py as a guide, record your personal gameplay for 10,000 steps.
+    #  Use this data to populate the replay buffer, and train your agent for 300,000 steps.
+    #  Compute the average score obtained by the resulting agent.
+    array = np.load('replay_buffer_FOR_STUDENTS.npy')
 
     # Initialize network parameters θ randomly
     X_o, Z_o, argmax_Z_o, online_scope = net_param('online', k)
@@ -521,7 +525,7 @@ def main(model, env_name, do_train, C):
         f_score.write('step,episode,score\n')
 
         train_model(model, session, saver, env, eval_env, replay_buffer, f_step_episode, f_reward, f_loss, f_score,
-                    loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C)
+                    loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps)
 
     # After training, render one episode of interaction between your agent and the environment.
     print('\nRendering one episode of interaction between the agent and the environment…')
@@ -538,10 +542,6 @@ def main(model, env_name, do_train, C):
 
     # TODO: Write your own wrapper for an Atari game. This wrapper should transform observations or rewards in order to
     #  make it much easier for Algorithm 1 to find a high-scoring policy.
-
-    # TODO: Using record agent.py as a guide (see iCorsi3), record your personal gameplay for 10,000 steps.
-    #  Use this data to populate the replay buffer, and train your agent for 300, 000 steps.
-    #  Compute the average score obtained by the resulting agent.
 
 
 def plot_step_per_episode(model):
@@ -578,17 +578,41 @@ def plot_step_per_episode(model):
 
 
 def plot_score(model):
+    """
+
+    :param model:
+    """
     out_dir = 'out/' + model + '/img/'
     check_dir(out_dir)
 
     input_dir = 'out/' + model + '/score.txt'
 
-    episodes = []
+    steps = []
+    scores = []
 
-    # x = step; y = score    per evaluation step
+    with open(input_dir, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            steps = np.append(steps, float(el[0]))
+            scores = np.append(scores, float(el[2]))
+
+    plt.xlabel('step', fontsize=11)
+    plt.ylabel('score', fontsize=11)
+
+    plt.plot(steps, scores, label='Score')
+    plt.title('Score: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'score.pdf')
+    plt.show()
+    plt.close()
 
 
 def plot_reward(model):
+    """
+
+    :param model:
+    """
     out_dir = 'out/' + model + '/img/'
     check_dir(out_dir)
 
@@ -616,6 +640,10 @@ def plot_reward(model):
 
 
 def plot_loss(model):
+    """
+
+    :param model:
+    """
     out_dir = 'out/' + model + '/img/'
     check_dir(out_dir)
 
@@ -643,6 +671,10 @@ def plot_loss(model):
 
 
 def plot_moving_average(model):
+    """
+
+    :param model:
+    """
     out_dir = 'out/' + model + '/img/'
     check_dir(out_dir)
 
@@ -714,20 +746,44 @@ def plot_score_comparison(model1, model2):
 
 if __name__ == '__main__':
 
-    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
+    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=True, n_steps=101_000 + 1)
 
-    plot_step_per_episode(model='m1')
-    # plot_score(model='m1')
-    plot_reward(model='m1')
-    plot_loss(model='m1')
-    plot_moving_average(model='m1')
+    # plot_step_per_episode(model='m1')
+    # # plot_score(model='m1')
+    # plot_reward(model='m1')
+    # plot_loss(model='m1')
+    # plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
-
     # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
+
+    # plot_step_per_episode(model='m2')
+    # # plot_score(model='m2')
+    # plot_reward(model='m2')
+    # plot_loss(model='m2')
+    # plot_moving_average(model='m2')
 
     # Compare in a single plot the average score across evaluations obtained by these two alternatives.
     # How do you explain the differences?
+    # plot_score_comparison(model1='m1', model2='m2')
 
     # Experiment with a different Atari game.
-    # main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False, C=10_000)
+    # main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False)
+
+    # plot_step_per_episode(model='m3')
+    # # plot_score(model='m3')
+    # plot_reward(model='m3')
+    # plot_loss(model='m3')
+    # plot_moving_average(model='m3')
+    # plot_score_comparison(model1='m1', model2='m3')
+    # plot_score_comparison(model1='m2', model2='m3')
+
+    main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000)
+
+    # plot_step_per_episode(model='m4')
+    # # plot_score(model='m4')
+    # plot_reward(model='m4')
+    # plot_loss(model='m4')
+    # plot_moving_average(model='m4')
+    # plot_score_comparison(model1='m1', model2='m4')
+    # plot_score_comparison(model1='m2', model2='m4')
