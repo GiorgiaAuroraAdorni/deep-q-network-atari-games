@@ -376,8 +376,6 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_epis
         # Obtain the next state and reward by taking action
         observation, reward, done, info = env.step(action)
         ret += reward
-        if reward > 0:
-            print()
 
         # Store the tuple (st, at, rt+1, st+1, Ωt+1) in the replay buffer D
         replay_buffer.append([old_observation, action, reward, observation, done])
@@ -469,7 +467,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     return test_env
 
 
-def main(model, env_name, do_train, C=10_000, n_steps=2_000_000 + 1):
+def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1):
     """
 
     :param model:
@@ -555,22 +553,20 @@ def plot_step_per_episode(model):
 
     input_dir = 'out/' + model + '/step-per-episode.txt'
 
-    episodes = []
-
     with open(input_dir, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            # step = np.append(step, float(el[0]))
-            episodes = np.append(episodes, float(el[1]))
+    episodes = lines[:, 1]
+    episodes = episodes.astype(np.float)
+    episode_counter = Counter(episodes)  # number of steps for episode
 
-    episode_counter = Counter(episodes)
+    plt.xlabel('step-per-episode', fontsize=11)
+    plt.ylabel('frequency', fontsize=11)
 
-    plt.xlabel('step', fontsize=11)
-    plt.ylabel('episode', fontsize=11)
-
-    plt.plot(list(episode_counter.keys()), list(episode_counter.values()), label='Steps per Episode')
+    plt.hist(list(episode_counter.values()), label='Steps per Episode')
     plt.title('Steps per Episode: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'step-per-episode.pdf')
     plt.show()
@@ -587,16 +583,17 @@ def plot_score(model):
 
     input_dir = 'out/' + model + '/score.txt'
 
-    steps = []
-    scores = []
-
     with open(input_dir, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            steps = np.append(steps, float(el[0]))
-            scores = np.append(scores, float(el[2]))
+    steps = lines[:, 0]
+    scores = lines[:, 2]
+
+    steps = steps.astype(np.float)
+    scores = scores.astype(np.float)
 
     plt.xlabel('step', fontsize=11)
     plt.ylabel('score', fontsize=11)
@@ -618,21 +615,20 @@ def plot_reward(model):
 
     input_dir = 'out/' + model + '/reward.txt'
 
-    steps = []
-    rewards = []
-
     with open(input_dir, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            steps = np.append(steps, float(el[0]))
-            rewards = np.append(rewards, float(el[2]))
+    rewards = lines[:, 2]
+    rewards = rewards.astype(np.float)
+    rewards_counter = Counter(rewards)  # number of steps for episode
 
-    plt.xlabel('step', fontsize=11)
-    plt.ylabel('reward', fontsize=11)
+    plt.xlabel('reward', fontsize=11)
+    plt.ylabel('frequency', fontsize=11)
 
-    plt.plot(steps, rewards, label='Reward')
+    plt.bar(list(rewards_counter.keys()), list(rewards_counter.values()), label='Reward')
     plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'reward.pdf')
     plt.show()
@@ -649,21 +645,21 @@ def plot_loss(model):
 
     input_dir = 'out/' + model + '/loss.txt'
 
-    steps = []
-    losses = []
-
     with open(input_dir, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            steps = np.append(steps, float(el[0]))
-            losses = np.append(losses, float(el[2]))
+    losses = lines[:, 2]
+    losses = losses.astype(np.float)
+
+    idx = np.arange(0, np.shape(losses)[0], 4000)
 
     plt.xlabel('step', fontsize=11)
     plt.ylabel('loss', fontsize=11)
 
-    plt.plot(steps, losses, label='Loss')
+    plt.plot(list(idx), losses[idx], label='Loss')
     plt.title('Loss: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'loss.pdf')
     plt.show()
@@ -680,14 +676,14 @@ def plot_moving_average(model):
 
     input_dir = 'out/' + model + '/moving_average.txt'
 
-    moving_averages = []
-
     with open(input_dir, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            moving_averages = np.append(moving_averages, float(el[0]))
+    moving_averages = lines[:, 0]
+    moving_averages = moving_averages.astype(np.float)
 
     episodes = np.arange(30, len(moving_averages) + 30)
 
@@ -713,24 +709,22 @@ def plot_score_comparison(model1, model2):
     input_dir1 = 'out/' + model1 + '/score.txt'
     input_dir2 = 'out/' + model2 + '/score.txt'
 
-    score1 = []
-    score2 = []
-    step = []
-
     with open(input_dir1, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            step = np.append(step, float(el[0]))
-            score1 = np.append(score1, float(el[2]))
+    step = lines[:, 0]
+    score1 = lines[:, 2]
 
     with open(input_dir2, 'r') as f:
         lines = f.readlines()[1:]
+        lines = np.array(lines)
+        lines = np.char.strip(lines, '\n')
+        lines = np.array([x.split(',') for x in lines])
 
-        for l in lines:
-            el = l.strip('\n').split(',')
-            score2 = np.append(score2, float(el[2]))
+    score2 = lines[:, 2]
 
     plt.xlabel('episodes', fontsize=11)
     plt.ylabel('score', fontsize=11)
@@ -746,13 +740,14 @@ def plot_score_comparison(model1, model2):
 
 if __name__ == '__main__':
 
-    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=True, n_steps=101_000 + 1)
+    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
 
     # plot_step_per_episode(model='m1')
-    # # plot_score(model='m1')
-    # plot_reward(model='m1')
+    # plot_score(model='m1')
+    # # plot_reward(model='m1')
     # plot_loss(model='m1')
-    # plot_moving_average(model='m1')
+    #
+    plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
     # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
@@ -778,7 +773,8 @@ if __name__ == '__main__':
     # plot_score_comparison(model1='m1', model2='m3')
     # plot_score_comparison(model1='m2', model2='m3')
 
-    main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000)
+    # TODO
+    # main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000)
 
     # plot_step_per_episode(model='m4')
     # # plot_score(model='m4')
