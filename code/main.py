@@ -667,6 +667,49 @@ def plot_moving_average(model):
     plt.close()
 
 
+def plot_score_comparison(model1, model2):
+    """
+
+    :param model1:
+    :param model2:
+    """
+    out_dir = 'out/' + model2 + '/img/comparison/'
+    check_dir(out_dir)
+
+    input_dir1 = 'out/' + model1 + '/score.txt'
+    input_dir2 = 'out/' + model2 + '/score.txt'
+
+    score1 = []
+    score2 = []
+    step = []
+
+    with open(input_dir1, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            step = np.append(step, float(el[0]))
+            score1 = np.append(score1, float(el[2]))
+
+    with open(input_dir2, 'r') as f:
+        lines = f.readlines()[1:]
+
+        for l in lines:
+            el = l.strip('\n').split(',')
+            score2 = np.append(score2, float(el[2]))
+
+    plt.xlabel('episodes', fontsize=11)
+    plt.ylabel('score', fontsize=11)
+
+    plt.plot(step, score1, label='Score' + model1)
+    plt.plot(step, score2, label='Score' + model2)
+
+    plt.title('Score comparison among model "' + model1 + '" and "' + model2 + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'scores-comparison-' + model1 + '-' + model2 + '.pdf')
+    plt.show()
+    plt.close()
+
+
 if __name__ == '__main__':
 
     # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False, C=10_000)
