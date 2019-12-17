@@ -408,7 +408,9 @@ def train_model(model, session, saver, env, eval_env, replay_buffer, f_step_epis
 
                 # Save a checkpoint
                 print('Saving model…')
-                saver.save(session, 'train/')
+                checkpoit_dir = 'out/' + model + '/train/train.ckpt'
+
+                saver.save(session, checkpoit_dir)
 
             # Evaluation
             if t % evaluation == 0:
