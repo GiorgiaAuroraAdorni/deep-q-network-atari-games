@@ -32,7 +32,7 @@ class ReplayBuffer(object):
     def __init__(self, counter=0, capacity=10000):
         self.counter = counter
         self.capacity = capacity
-        self.buffer = np.empty([self.capacity, 5], dtype=object)
+        self.buffer = np.full([self.capacity, 5], None, dtype=object)
 
     def append(self, data):
         """
@@ -64,7 +64,7 @@ class ReplayBuffer(object):
 
         :return:
         """
-        if self.buffer[-1].all() == np.empty([1, 5], dtype=object).all():
+        if np.all(self.buffer[-1, :] == np.full([1, 5], None, dtype=object)):
             return False
         else:
             return True
@@ -441,7 +441,7 @@ def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buff
                     print('loss ', batch_loss)
                 f_loss.write(str(t) + ', ' + str(episode) + ',' + str(batch_loss) + '\n')
 
-            # Every C = 10000 steps, copy the parameters of the online network to the target network.
+            # Every C steps, copy the parameters of the online network to the target network.
             if t % C == 0:
                 session.run(assign)
 
@@ -452,7 +452,7 @@ def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buff
             # Evaluation
             if t % evaluation == 0:
                 print('Evaluation…')
-                evaluate_model(session, argmax_Z_o, X_o, t, evaluation, eval_env, f_score)
+                evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score)
 
         # Estimate the remaining training time based on the average time that each step requires
         step_end = time.time()
@@ -664,7 +664,6 @@ def plot_reward(model):
         lines = np.array([x.split(',') for x in lines])
 
     rewards = lines[:, 2]
-    rewards = rewards.astype(np.float)
     rewards_counter = Counter(rewards)  # number of steps for episode
 
     plt.xlabel('reward', fontsize=11)
@@ -757,8 +756,11 @@ def plot_score_comparison(model1, model2):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    step = lines[:, 0]
+    steps = lines[:, 0]
+    steps = steps.astype(np.float)
+
     score1 = lines[:, 2]
+    score1 = score1.astype(np.float)
 
     with open(input_dir2, 'r') as f:
         lines = f.readlines()[1:]
@@ -767,12 +769,13 @@ def plot_score_comparison(model1, model2):
         lines = np.array([x.split(',') for x in lines])
 
     score2 = lines[:, 2]
+    score2 = score2.astype(np.float)
 
     plt.xlabel('episodes', fontsize=11)
     plt.ylabel('score', fontsize=11)
 
-    plt.plot(step, score1, label='Score' + model1)
-    plt.plot(step, score2, label='Score' + model2)
+    plt.plot(steps, score1, label='Score' + model1)
+    plt.plot(steps, score2, label='Score' + model2)
 
     plt.title('Score comparison among model "' + model1 + '" and "' + model2 + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'scores-comparison-' + model1 + '-' + model2 + '.pdf')
@@ -782,26 +785,26 @@ def plot_score_comparison(model1, model2):
 
 if __name__ == '__main__':
 
-    main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
+    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
 
-    # plot_step_per_episode(model='m1')
-    # plot_score(model='m1')
-    # # plot_reward(model='m1')
-    # plot_loss(model='m1')
-    # plot_moving_average(model='m1')
+    plot_step_per_episode(model='m1')
+    plot_score(model='m1')
+    plot_reward(model='m1')
+    plot_loss(model='m1')
+    plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
-    # main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
+    main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
 
-    # plot_step_per_episode(model='m2')
-    # # plot_score(model='m2')
-    # plot_reward(model='m2')
-    # plot_loss(model='m2')
-    # plot_moving_average(model='m2')
+    plot_step_per_episode(model='m2')
+    plot_score(model='m2')
+    plot_reward(model='m2')
+    plot_loss(model='m2')
+    plot_moving_average(model='m2')
 
     # Compare in a single plot the average score across evaluations obtained by these two alternatives.
     # How do you explain the differences?
-    # plot_score_comparison(model1='m1', model2='m2')
+    plot_score_comparison(model1='m1', model2='m2')
 
     # Experiment with a different Atari game.
     # main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False)
@@ -814,7 +817,7 @@ if __name__ == '__main__':
     # plot_score_comparison(model1='m1', model2='m3')
     # plot_score_comparison(model1='m2', model2='m3')
 
-    main(model='m4', env_name='BreakoutNoFrameskip-v4', do_train=False, n_steps=300_000, populate=True)
+    # main(model='m4', env_name='BreakoutNoFrameskip-v4', n_steps=300_000, populate=True)
 
     # plot_step_per_episode(model='m4')
     # # plot_score(model='m4')
