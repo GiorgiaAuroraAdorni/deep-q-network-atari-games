@@ -682,12 +682,27 @@ def plot_reward(model):
     rewards = lines[:, 2]
     rewards_counter = Counter(rewards)  # number of steps for episode
 
+    idx = np.arange(0, np.shape(rewards)[0], 1000)
+
     plt.xlabel('reward', fontsize=11)
     plt.ylabel('frequency', fontsize=11)
+
     ax = plt.gca()
     ax.yaxis.set_major_formatter(EngFormatter())
 
     plt.bar(list(rewards_counter.keys()), list(rewards_counter.values()), label='Reward', width=0.4)
+    plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'reward-histogram.pdf')
+    plt.show()
+    plt.close()
+
+    plt.xlabel('reward', fontsize=11)
+    plt.ylabel('frequency', fontsize=11)
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(EngFormatter())
+
+    plt.plot(list(idx), rewards[idx], label='Loss')
     plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'reward.pdf')
     plt.show()
@@ -881,7 +896,7 @@ if __name__ == '__main__':
 
     # plot_step_per_episode(model='m1')
     # plot_score(model='m1')
-    # plot_reward(model='m1')
+    plot_reward(model='m1')
     # plot_loss(model='m1')
     # plot_moving_average(model='m1')
 
@@ -918,8 +933,7 @@ if __name__ == '__main__':
     # plot_moving_average(model='m4')
     # plot_score_comparison(model1='m1', model2='m4')
     # plot_score_comparison(model1='m2', model2='m4')
-
-    plot_loss_comparison('m1', 'm2', 'm3', 'm4')
+    #
+    # plot_loss_comparison('m1', 'm2', 'm3', 'm4')
 
     # main(model='prova', n_steps=300_000 + 1, C=50_000, populate=True)
-
