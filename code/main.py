@@ -6,6 +6,7 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow.compat.v1 as tf
+from matplotlib.ticker import EngFormatter
 
 from atari_wrappers import make_atari, wrap_deepmind
 
@@ -498,7 +499,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
         test_done = False
 
         while not test_done:
-            test_env.render()
+            # test_env.render()
             test_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, test_observation, test_env)
 
             test_observation, test_reward, test_done, test_info = test_env.step(test_action)
@@ -506,7 +507,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     return test_env
 
 
-def main(model, env_name, do_train=True, C=10_000, n_steps=2_000_000+1, populate=False):
+def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_steps=2_000_000+1, populate=False):
     """
 
     :param model:
@@ -641,6 +642,11 @@ def plot_score(model):
     plt.ylabel('score', fontsize=11)
 
     plt.plot(steps, scores, label='Score')
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(EngFormatter(places=2))
+
+    plt.legend()
     plt.title('Score: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'score.pdf')
     plt.show()
@@ -701,6 +707,11 @@ def plot_loss(model):
     plt.ylabel('loss', fontsize=11)
 
     plt.plot(list(idx), losses[idx], label='Loss')
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(EngFormatter(places=0))
+
+    plt.legend()
     plt.title('Loss: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'loss.pdf')
     plt.show()
@@ -732,6 +743,11 @@ def plot_moving_average(model):
     plt.ylabel('moving-average', fontsize=11)
 
     plt.plot(episodes, moving_averages, label='Moving Average')
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(EngFormatter(places=0))
+
+    plt.legend()
     plt.title('Moving Average: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'moving-average.pdf')
     plt.show()
@@ -756,8 +772,8 @@ def plot_score_comparison(model1, model2):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    steps = lines[:, 0]
-    steps = steps.astype(np.float)
+    steps1 = lines[:, 0]
+    steps1 = steps1.astype(np.float)
 
     score1 = lines[:, 2]
     score1 = score1.astype(np.float)
@@ -768,15 +784,22 @@ def plot_score_comparison(model1, model2):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
+    steps2 = lines[:, 0]
+    steps2 = steps2.astype(np.float)
+
     score2 = lines[:, 2]
     score2 = score2.astype(np.float)
 
     plt.xlabel('episodes', fontsize=11)
     plt.ylabel('score', fontsize=11)
 
-    plt.plot(steps, score1, label='Score' + model1)
-    plt.plot(steps, score2, label='Score' + model2)
+    plt.plot(steps1, score1, label='Score ' + model1)
+    plt.plot(steps2, score2, label='Score ' + model2)
 
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(EngFormatter(places=1))
+
+    plt.legend()
     plt.title('Score comparison among model "' + model1 + '" and "' + model2 + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'scores-comparison-' + model1 + '-' + model2 + '.pdf')
     plt.show()
@@ -785,7 +808,7 @@ def plot_score_comparison(model1, model2):
 
 if __name__ == '__main__':
 
-    # main(model='m1', env_name='BreakoutNoFrameskip-v4', do_train=False)
+    # main(model='m1')
 
     plot_step_per_episode(model='m1')
     plot_score(model='m1')
@@ -794,7 +817,7 @@ if __name__ == '__main__':
     plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
-    main(model='m2', env_name='BreakoutNoFrameskip-v4', do_train=False, C=50_000)
+    # main(model='m2', C=50_000)
 
     plot_step_per_episode(model='m2')
     plot_score(model='m2')
@@ -807,22 +830,22 @@ if __name__ == '__main__':
     plot_score_comparison(model1='m1', model2='m2')
 
     # Experiment with a different Atari game.
-    # main(model='m3', env_name='StarGunnerNoFrameskip-v4', do_train=False)
+    # main(model='m3', env_name='StarGunnerNoFrameskip-v4')
 
-    # plot_step_per_episode(model='m3')
-    # # plot_score(model='m3')
-    # plot_reward(model='m3')
-    # plot_loss(model='m3')
-    # plot_moving_average(model='m3')
-    # plot_score_comparison(model1='m1', model2='m3')
-    # plot_score_comparison(model1='m2', model2='m3')
+    plot_step_per_episode(model='m3')
+    plot_score(model='m3')
+    plot_reward(model='m3')
+    plot_loss(model='m3')
+    plot_moving_average(model='m3')
+    plot_score_comparison(model1='m1', model2='m3')
+    plot_score_comparison(model1='m2', model2='m3')
 
-    # main(model='m4', env_name='BreakoutNoFrameskip-v4', n_steps=300_000, populate=True)
+    # main(model='m4', n_steps=300_000 + 1, populate=True)
 
-    # plot_step_per_episode(model='m4')
-    # # plot_score(model='m4')
-    # plot_reward(model='m4')
-    # plot_loss(model='m4')
-    # plot_moving_average(model='m4')
-    # plot_score_comparison(model1='m1', model2='m4')
-    # plot_score_comparison(model1='m2', model2='m4')
+    plot_step_per_episode(model='m4')
+    plot_score(model='m4')
+    plot_reward(model='m4')
+    plot_loss(model='m4')
+    plot_moving_average(model='m4')
+    plot_score_comparison(model1='m1', model2='m4')
+    plot_score_comparison(model1='m2', model2='m4')
