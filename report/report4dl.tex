@@ -86,6 +86,16 @@
 \newcommand{\footref}[1]{%
 	$^{\ref{#1}}$%
 }
+\newcommand{\footlabel}[2]{%
+	\addtocounter{footnote}{1}%
+	\footnotetext[\thefootnote]{%
+		\addtocounter{footnote}{-1}%
+		\refstepcounter{footnote}\label{#1}%
+		#2%
+	}%
+	$^{\ref{#1}}$%
+}
+
 
 \pagestyle{fancy}
 
@@ -127,17 +137,108 @@
 	\section{Introduction}
 	\label{section:intro}
 	
+	The goal of this project is to implement and train a Deep Q-Network agent, based on \textit{Mnih et al., 2015}.
+	
+	All the models were implemented using TensorFlow and trained on an NVIDIA Tesla V100-PCIE-16GB GPU.
+	
 	\section{Environment}
 	\label{section:environment}
 	
-	\section{Agent}
+	
+	\texttt{OpenAI Gym} has been used to create the \textit{BreakoutNoFrameskip-v4} environment. Moreover, a seed has been fixed and used for the creation of the environment and for the future random operations. 
+	
+	\section{Agent and Training}
 	\label{section:agent}
 	
-	\section{Training}
-	\label{section:training}
+	The DQN agent has three main components: an online Q-network, a target Q-network and replay buffer.
+	The two networks are user to improve the stability of this method, in particular, every $C$ steps, the target network is updated with the online network parameters.
+	
+	The replay buffer of capacity $10000$ is composed of state, action, reward, next state, and termination flag. It will be used during the training in order to create batches by sampling them from the buffer.
+	
+	In Table \ref{tab:arc} is summarised the architecture of both the networks. 
+	
+	\begin{figure}[htb]
+		\centering
+		
+		\begin{tabular}{ccccc}
+			\toprule
+			\textbf{conv1} & \textbf{conv2} & \textbf{conv3} & \textbf{fc1} &
+			\textbf{fc2} \\
+			\midrule
+			8$\times$8,  32 & 4$\times$4, 64 & 3$\times$3, 64 & 512 & k\\
+			s. 4$\times$4 &   s. 2$\times$2 &   s. 1$\times$1 &  & \\
+			p. same & p. same & p. same &&\\
+			ReLU & ReLU & ReLU & ReLU & ReLU  \\
+			\bottomrule
+		\end{tabular}
+		\captionof{table}{Network architecture}
+		\label{tab:arc}
+	\end{figure}
 	
 	
 	\section{Tasks}
 	\label{section:tasks}
+	% FIXME
+	1. (10 points) Several Gym wrappers were required to preprocess the data. These wrappers include the FrameStack wrapper, the ScaledFloatFrame wrapper, the MaxAndSkipEnv wrapper, and the ClipRewar- dEnv wrapper. Briefly explain the role of each of these wrappers (in one or two sentences).
+	2. (10 points) How do Mnih et al. (2015) explain the need for a target Q-network in addition to an online Q- network?
+	3. (10 points) Why is it necessary to act according to an $\epsilon$-greedy policy instead of a greedy policy (with respect to Q)?
+	% end FIXME
+	
+	\subsection{Experiment 1}
+	The first experiment includes a training phase the takes $2000000$ steps. 
+	Root mean square prop (\texttt{RMSprop}) is used as optimiser.
+	
+	Figure \ref{fig:step-m1} shows the number of steps elapsed in each episode.
+	It is clearly visible how the number of steps per episode increases over time, since the network learns how to play.
+
+	\begin{figure}[htb]
+		\centering
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
+		\caption{Steps per episode of the first experiment}
+		\label{fig:step-m1}
+	\end{figure}
+	\bigskip
+	%FIXME
+	Figure \ref{fig:reward-m1} shows the number of time in which the  of steps elapsed in each episode.
+	It is clearly visible how the number of steps per episode increases over time, since the network learns how to play.
+	
+	\begin{figure}[htb]
+		\centering
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/reward.pdf}	
+		\caption{Reward obtained at each step in the first experiment}
+		\label{fig:reward-m1}
+	\end{figure}
+	\bigskip
+
+	the reward obtained at each step. 
+	 
+	% FIXME time
+	It is also useful to estimate the remaining training time based on the average time that each step requires.
+	
+	Figure \ref{fig:movingavg-m1} shows the return per episode, averaged over the last 30 episodes to reduce noise, called moving average.
+	
+	\begin{figure}[htb]
+		\centering
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/moving-average.pdf}	
+		\caption{Moving average of the first experiment}
+		\label{fig:movingavg-m1}
+	\end{figure}
+	\bigskip
+	Figure \ref{fig:score-m1} shows the scores across 30 independent plays. A score is the sum of the return obtained across a sequence of 5 different episodes that is called play.
+	\begin{figure}[htb]
+		\centering
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/score.pdf}	
+		\caption{Score of the first experiment}
+		\label{fig:score-m1}
+	\end{figure} 
+	\bigskip
+	
+	At the end, in Figure \ref{fig:loss-m1} is shown the temporal-difference error L($\theta$).
+	\begin{figure}[htb]
+		\centering
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/loss.pdf}	
+		\caption{Loss of the first experiment}
+		\label{fig:loss-m1}
+	\end{figure} 
 
 \end{document}
