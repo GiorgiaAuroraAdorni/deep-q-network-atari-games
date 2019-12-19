@@ -602,21 +602,23 @@ def plot_step_per_episode(model):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    steps = lines[:, 0]
-    episodes = lines[:, 1]
-    episodes = episodes.astype(np.int)
+    steps = lines[:, 0].astype(np.int)
+    episodes = lines[:, 1].astype(np.int)
 
     episode_counter = Counter(episodes)  # number of steps for episode
-    idx = np.arange(0, len(episode_counter), len(episode_counter) // 100)
+
+    plt.figure()
+
+    # plt.plot(np.array(list(episode_counter.keys()))[idx], np.array(list(episode_counter.values()))[idx])
+    plt.plot(np.array(list(episode_counter.keys()))[::len(episode_counter) // 70],
+             np.array(list(episode_counter.values()))[::len(episode_counter) // 70])
+    # plt.hist(list(episode_counter.values()), label='Steps per Episode')
 
     plt.xlabel('episode', fontsize=11)
     plt.ylabel('step-per-episode', fontsize=11)
 
-    plt.plot(np.array(list(episode_counter.keys()))[idx], np.array(list(episode_counter.values()))[idx])
-    # plt.hist(list(episode_counter.values()), label='Steps per Episode')
     plt.title('Steps per Episode: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'step-per-episode.pdf')
-    plt.show()
     plt.close()
 
 
@@ -636,23 +638,24 @@ def plot_score(model):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    steps = lines[:, 0]
-    scores = lines[:, 2]
+    steps = lines[:, 0].astype(np.int)
+    scores = lines[:, 2].astype(np.float)
 
     steps = steps.astype(np.float)
     scores = scores.astype(np.float)
 
+    plt.figure()
+
+    plt.plot(steps, scores)
+
     plt.xlabel('step', fontsize=11)
     plt.ylabel('score', fontsize=11)
-
-    plt.plot(steps, scores, label='Score')
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(EngFormatter())
 
     plt.title('Score: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'score.pdf')
-    plt.show()
     plt.close()
 
 
@@ -672,10 +675,11 @@ def plot_reward(model):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    rewards = lines[:, 2]
+    rewards = lines[:, 2].astype(np.float)
     rewards_counter = Counter(rewards)  # number of steps for episode
 
-    idx = np.arange(0, np.shape(rewards)[0], 1000)
+    plt.figure()
+    plt.bar(list(rewards_counter.keys()), list(rewards_counter.values()), width=0.4)
 
     plt.xlabel('reward', fontsize=11)
     plt.ylabel('frequency', fontsize=11)
@@ -683,11 +687,14 @@ def plot_reward(model):
     ax = plt.gca()
     ax.yaxis.set_major_formatter(EngFormatter())
 
-    plt.bar(list(rewards_counter.keys()), list(rewards_counter.values()), label='Reward', width=0.4)
     plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'reward-histogram.pdf')
-    plt.show()
     plt.close()
+
+    idx = np.arange(0, np.shape(rewards)[0], 1000)
+
+    plt.figure()
+    plt.plot(idx, rewards[idx])
 
     plt.xlabel('reward', fontsize=11)
     plt.ylabel('frequency', fontsize=11)
@@ -695,18 +702,18 @@ def plot_reward(model):
     ax = plt.gca()
     ax.xaxis.set_major_formatter(EngFormatter())
 
-    plt.plot(list(idx), rewards[idx], label='Loss')
     plt.title('Reward: "' + model + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'reward.pdf')
-    plt.show()
     plt.close()
 
 
-def plot_loss(model):
+def plot_loss_moving_avg(model):
     """
 
     :param model:
+    :return:
     """
+
     out_dir = 'out/' + model + '/img/'
     check_dir(out_dir)
 
@@ -718,27 +725,26 @@ def plot_loss(model):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    losses = lines[:, 2]
-    losses = losses.astype(np.float)
+    steps = lines[:, 0].astype(np.int)
+    losses = lines[:, 2].astype(np.float)
 
-    idx = np.arange(0, np.shape(losses)[0], 4000)
+    losses = moving_average(losses, window=50)
+
+    plt.figure()
+    plt.plot(steps[50::1000], losses[::1000])
 
     plt.xlabel('step', fontsize=11)
     plt.ylabel('loss', fontsize=11)
 
-    plt.plot(list(idx), losses[idx], label='Loss')
-
     ax = plt.gca()
-    ax.yaxis.set_major_formatter(EngFormatter())
     ax.xaxis.set_major_formatter(EngFormatter())
 
-    plt.title('Loss: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'loss.pdf')
-    plt.show()
+    plt.title('Loss (Moving Average): "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'loss-moving-average.pdf')
     plt.close()
 
 
-def plot_moving_average(model):
+def plot_score_moving_average(model):
     """
 
     :param model:
@@ -754,22 +760,22 @@ def plot_moving_average(model):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    moving_averages = lines[:, 0]
-    moving_averages = moving_averages.astype(np.float)
+    score_moving_averages = lines[:, 0].astype(np.float)
 
-    episodes = np.arange(30, len(moving_averages) + 30)
+    episodes = np.arange(30, len(score_moving_averages) + 30)
+
+    plt.figure()
+
+    plt.plot(episodes, score_moving_averages)
 
     plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('moving-average', fontsize=11)
-
-    plt.plot(episodes, moving_averages, label='Moving Average')
+    plt.ylabel('return', fontsize=11)
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(EngFormatter())
 
-    plt.title('Moving Average: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'moving-average.pdf')
-    plt.show()
+    plt.title('Return (Moving Average): "' + model + '"', weight='bold', fontsize=12)
+    plt.savefig(out_dir + 'score-moving-average.pdf')
     plt.close()
 
 
@@ -803,17 +809,17 @@ def plot_score_comparison(model1, model2):
         lines = np.char.strip(lines, '\n')
         lines = np.array([x.split(',') for x in lines])
 
-    steps2 = lines[:, 0]
-    steps2 = steps2.astype(np.float)
+    steps2 = lines[:, 0].astype(np.float)
 
-    score2 = lines[:, 2]
-    score2 = score2.astype(np.float)
+    score2 = lines[:, 2].astype(np.float)
 
-    plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('score', fontsize=11)
+    plt.figure()
 
     plt.plot(steps1, score1, label='Score ' + model1)
     plt.plot(steps2, score2, label='Score ' + model2)
+
+    plt.xlabel('episodes', fontsize=11)
+    plt.ylabel('score', fontsize=11)
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(EngFormatter())
@@ -821,7 +827,6 @@ def plot_score_comparison(model1, model2):
     plt.legend()
     plt.title('Score comparison among model "' + model1 + '" and "' + model2 + '"', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'scores-comparison-' + model1 + '-' + model2 + '.pdf')
-    plt.show()
     plt.close()
 
 
@@ -840,12 +845,9 @@ def plot_loss_comparison(model1, model2, model3, model4):
     input_dir4 = 'out/' + model4 + '/loss.txt'
 
     inputs = [input_dir1, input_dir2, input_dir3, input_dir4]
-    # steps = np.full(4, None, dtype=object)
-    # losses = np.full(4, None, dtype=object)
 
     steps = []
     losses = []
-    indices = []
 
     for i, e in enumerate(inputs):
         with open(e, 'r') as f:
@@ -854,22 +856,23 @@ def plot_loss_comparison(model1, model2, model3, model4):
             lines = np.char.strip(lines, '\n')
             lines = np.array([x.split(',') for x in lines])
 
-            steps.append(lines[:, 0])
+            steps.append(lines[:, 0].astype(np.int))
             losses.append(lines[:, 2].astype(np.float))
 
     lenghts = [len(l) for l in losses]
-
     indices = [np.arange(0, i, i // 100) for i in lenghts]
 
-    plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('score', fontsize=11)
+    l = [np.array(losses[idx])[ind] for idx, ind in enumerate(indices)]
 
-    l = [np.array(losses[idx])[ind]for idx, ind in enumerate(indices)]
+    plt.figure()
 
     plt.plot(indices[0], l[0], label='Score ' + model1)
     plt.plot(indices[1], l[1], label='Score ' + model2)
     plt.plot(indices[2], l[2], label='Score ' + model3)
     plt.plot(indices[3], l[3], label='Score ' + model4)
+
+    plt.xlabel('episodes', fontsize=11)
+    plt.ylabel('score', fontsize=11)
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(EngFormatter())
@@ -879,75 +882,76 @@ def plot_loss_comparison(model1, model2, model3, model4):
     plt.legend()
     plt.title('Loss comparison among all the models', weight='bold', fontsize=12)
     plt.savefig(out_dir + 'losses-comparison.pdf')
-    plt.show()
     plt.close()
 
 
 if __name__ == '__main__':
-    m_start = time.time()
-    main(model='m1')
-    m_end = time.time()
-
-    f_time = open('out/' + 'm1' + '/time.txt', "w")
-    f_time.write(str(m_end - m_start))
-    f_time.close()
+    # m_start = time.time()
+    # main(model='m1')
+    # m_end = time.time()
+    #
+    # f_time = open('out/' + 'm1' + '/time.txt', "w")
+    # f_time.write(str(m_end - m_start))
+    # f_time.close()
 
     # plot_step_per_episode(model='m1')
-    plot_score(model='m1')
+    # plot_score(model='m1')
     # plot_reward(model='m1')
-    # plot_loss(model='m1')
-    # plot_moving_average(model='m1')
+    plot_loss_moving_avg(model='m1')
+    # plot_score_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
-    m_start = time.time()
-    main(model='m2', C=50_000)
-    m_end = time.time()
-
-    f_time = open('out/' + 'm2' + '/time.txt', "w")
-    f_time.write(str(m_end - m_start))
-    f_time.close()
+    # m_start = time.time()
+    # main(model='m2', C=50_000)
+    # m_end = time.time()
+    #
+    # f_time = open('out/' + 'm2' + '/time.txt', "w")
+    # f_time.write(str(m_end - m_start))
+    # f_time.close()
 
     # plot_step_per_episode(model='m2')
     # plot_score(model='m2')
     # plot_reward(model='m2')
-    # plot_loss(model='m2')
-    # plot_moving_average(model='m2')
+    plot_loss_moving_avg(model='m2')
+    # plot_score_moving_average(model='m2')
 
     # Compare in a single plot the average score across evaluations obtained by these two alternatives.
     # How do you explain the differences?
     # plot_score_comparison(model1='m1', model2='m2')
 
     # Experiment with a different Atari game.
-    m_start = time.time()
-    main(model='m3', env_name='StarGunnerNoFrameskip-v4')
-    m_end = time.time()
-
-    f_time = open('out/' + 'm3' + '/time.txt', "w")
-    f_time.write(str(m_end - m_start))
-    f_time.close()
+    # m_start = time.time()
+    # main(model='m3', env_name='StarGunnerNoFrameskip-v4')
+    # m_end = time.time()
+    #
+    # f_time = open('out/' + 'm3' + '/time.txt', "w")
+    # f_time.write(str(m_end - m_start))
+    # f_time.close()
 
     # plot_step_per_episode(model='m3')
     # plot_score(model='m3')
     # plot_reward(model='m3')
-    # plot_loss(model='m3')
-    # plot_moving_average(model='m3')
+    plot_loss_moving_avg(model='m3')
+    # plot_score_moving_average(model='m3')
+    #
     # plot_score_comparison(model1='m1', model2='m3')
     # plot_score_comparison(model1='m2', model2='m3')
 
-    m_start = time.time()
-    main(model='m4', n_steps=300_000 + 1, populate=True)
-    m_end = time.time()
-
-    f_time = open('out/' + 'm4' + '/time.txt', "w")
-    f_time.write(str(m_end - m_start))
-    f_time.close()
+    # m_start = time.time()
+    # main(model='m4', n_steps=300_000 + 1, populate=True)
+    # m_end = time.time()
+    #
+    # f_time = open('out/' + 'm4' + '/time.txt', "w")
+    # f_time.write(str(m_end - m_start))
+    # f_time.close()
 
     # plot_step_per_episode(model='m4')
     # plot_score(model='m4')
     # plot_reward(model='m4')
-    # plot_loss(model='m4')
-    # plot_moving_average(model='m4')
+    plot_loss_moving_avg(model='m4')
+    # plot_score_moving_average(model='m4')
+    #
     # plot_score_comparison(model1='m1', model2='m4')
     # plot_score_comparison(model1='m2', model2='m4')
-
+    #
     # plot_loss_comparison('m1', 'm2', 'm3', 'm4')
