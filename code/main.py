@@ -164,8 +164,12 @@ def create_fc_layer(input_size, output_size, input, activation):
     :return A_fc
     """
     with tf.variable_scope(None, default_name="fc"):
-        W_fc = tf.Variable(tf.truncated_normal([input_size, output_size], stddev=0.1))
-        b_fc = tf.Variable(tf.zeros(shape=(output_size,)))
+        W_init = tf.variance_scaling_initializer()
+        W_fc = tf.Variable(W_init([input_size, output_size]))
+
+        b_init = tf.zeros_initializer()
+        b_fc = tf.Variable(b_init(output_size))
+
         A_fc = tf.matmul(input, W_fc) + b_fc
 
         if activation:
@@ -519,6 +523,8 @@ def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_st
     :param C:
     :return:
     """
+    tf.reset_default_graph()
+
     env = wrap_atari_deepmind(env_name, True)
     eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
