@@ -30,11 +30,10 @@ for device in gpu_devices:
 
 
 class ReplayBuffer(object):
-    def __init__(self, random_state, counter=0, capacity=10000):
+    def __init__(self, counter=0, capacity=10000):
         self.counter = counter
         self.capacity = capacity
         self.buffer = np.full([self.capacity, 5], None, dtype=object)
-        self.random_state = random_state
 
     def append(self, data):
         """
@@ -58,7 +57,7 @@ class ReplayBuffer(object):
         """
         :return:
         """
-        idx = self.random_state.choice(self.capacity, B)
+        idx = np.random.choice(self.capacity, B)
         return self.buffer[idx]
 
     def is_full(self):
@@ -272,7 +271,7 @@ def assign_weights(online_scope, target_scope):
     return assign
 
 
-def epsilon_greedy_policy(session, random_state, argmax_Z_o, X_o, epsilon, observation, env):
+def epsilon_greedy_policy(session, argmax_Z_o, X_o, epsilon, observation, env):
     """
 
     :param session:
@@ -283,7 +282,7 @@ def epsilon_greedy_policy(session, random_state, argmax_Z_o, X_o, epsilon, obser
     :param env:
     :return action:
     """
-    if random_state.uniform(0, 1) < (1 - epsilon):
+    if np.random.uniform() < (1 - epsilon):
         # at ← arg max_a Q(st, a; θ)
         action = session.run(argmax_Z_o, feed_dict={X_o: observation[np.newaxis, ...]})
     else:
@@ -308,7 +307,7 @@ def moving_average(values, window=30):
     return moving_average
 
 
-def evaluate_model(session, random_state, argmax_Z_o, X_o, t, episode, eval_env, f_score):
+def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score):
     """
 
     :param session:
@@ -334,7 +333,7 @@ def evaluate_model(session, random_state, argmax_Z_o, X_o, t, episode, eval_env,
             while not eval_done:
                 # every 100,000 steps (20 times in total), evaluate an ε-greedy policy based on your learned
                 # Q-function with ε = 0.001
-                eval_action = epsilon_greedy_policy(session, random_state, argmax_Z_o, X_o, 0.001, eval_observation,
+                eval_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, eval_observation,
                                                     eval_env)
 
                 eval_observation, eval_reward, eval_done, eval_info = eval_env.step(eval_action)
@@ -349,7 +348,7 @@ def evaluate_model(session, random_state, argmax_Z_o, X_o, t, episode, eval_env,
     f_score.flush()
 
 
-def train_model(model, session, random_state, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode,
+def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode,
                 f_reward, f_loss, f_score, loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps,
                 done=True, episode=0, total_steps_time=0, exploration_steps=1_000_000, s_epsilon=1, f_epsilon=0.1,
                 evaluation=100_000, n=4, ret=0.0, returns=None):
@@ -414,7 +413,7 @@ def train_model(model, session, random_state, saver, checkpoit_dir, env, eval_en
 
         actual_epsilon = np.interp(t, [0, exploration_steps], [s_epsilon, f_epsilon])
 
-        action = epsilon_greedy_policy(session, random_state, argmax_Z_o, X_o, actual_epsilon, observation, env)
+        action = epsilon_greedy_policy(session, argmax_Z_o, X_o, actual_epsilon, observation, env)
 
         old_observation = observation
 
@@ -456,7 +455,7 @@ def train_model(model, session, random_state, saver, checkpoit_dir, env, eval_en
             # Evaluation
             if t % evaluation == 0:
                 print('Evaluation…')
-                evaluate_model(session, random_state, argmax_Z_o, X_o, t, episode, eval_env, f_score)
+                evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score)
 
         # Estimate the remaining training time based on the average time that each step requires
         step_end = time.time()
@@ -484,7 +483,7 @@ def train_model(model, session, random_state, saver, checkpoit_dir, env, eval_en
     f_moving_average.close()
 
 
-def test_model(X_o, argmax_Z_o, eval_env, session, random_state, video_dir):
+def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     """
 
     :param X_o:
@@ -503,7 +502,7 @@ def test_model(X_o, argmax_Z_o, eval_env, session, random_state, video_dir):
 
         while not test_done:
             # test_env.render()
-            test_action = epsilon_greedy_policy(session, random_state, argmax_Z_o, X_o, 0.001, test_observation,
+            test_action = epsilon_greedy_policy(session, argmax_Z_o, X_o, 0.001, test_observation,
                                                 test_env)
 
             test_observation, test_reward, test_done, test_info = test_env.step(test_action)
@@ -523,17 +522,11 @@ def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_st
     env = wrap_atari_deepmind(env_name, True)
     eval_env = wrap_atari_deepmind(env_name, False)  # the rewards of the evaluation environment should not be clipped
 
-    seed = 24
-
-    env.seed(seed)
-    eval_env.seed(seed)
-    random_state = np.random.RandomState(seed)
-
     k = env.action_space.n
     B = 32
 
     # Initialize replay buffer D, which stores at most M tuples
-    replay_buffer = ReplayBuffer(random_state)
+    replay_buffer = ReplayBuffer()
 
     if populate:
         fill_buffer(replay_buffer)
@@ -573,7 +566,7 @@ def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_st
         f_score = open('out/' + model + '/score.txt', "w")
         f_score.write('step,episode,score\n')
 
-        train_model(model, session, random_state, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode,
+        train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buffer, f_step_episode,
                     f_reward, f_loss, f_score, loss, train, assign, X_o, A, R, X_t, Omega, B, argmax_Z_o, C, n_steps)
     else:
         saver.restore(session, checkpoit_dir)
@@ -583,7 +576,7 @@ def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_st
     video_dir = 'out/' + model + '/video'
     check_dir(video_dir)
 
-    test_env = test_model(X_o, argmax_Z_o, eval_env, session, random_state, video_dir)
+    test_env = test_model(X_o, argmax_Z_o, eval_env, session, video_dir)
 
     env.close()
     eval_env.close()
@@ -891,17 +884,28 @@ def plot_loss_comparison(model1, model2, model3, model4):
 
 
 if __name__ == '__main__':
+    m_start = time.time()
+    main(model='m1')
+    m_end = time.time()
 
-    # main(model='m1')
+    f_time = open('out/' + 'm1' + '/time.txt', "w")
+    f_time.write(str(m_end - m_start))
+    f_time.close()
 
     # plot_step_per_episode(model='m1')
-    # plot_score(model='m1')
-    plot_reward(model='m1')
+    plot_score(model='m1')
+    # plot_reward(model='m1')
     # plot_loss(model='m1')
     # plot_moving_average(model='m1')
 
     # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
-    # main(model='m2', C=50_000)
+    m_start = time.time()
+    main(model='m2', C=50_000)
+    m_end = time.time()
+
+    f_time = open('out/' + 'm2' + '/time.txt', "w")
+    f_time.write(str(m_end - m_start))
+    f_time.close()
 
     # plot_step_per_episode(model='m2')
     # plot_score(model='m2')
@@ -914,7 +918,13 @@ if __name__ == '__main__':
     # plot_score_comparison(model1='m1', model2='m2')
 
     # Experiment with a different Atari game.
-    # main(model='m3', env_name='StarGunnerNoFrameskip-v4')
+    m_start = time.time()
+    main(model='m3', env_name='StarGunnerNoFrameskip-v4')
+    m_end = time.time()
+
+    f_time = open('out/' + 'm3' + '/time.txt', "w")
+    f_time.write(str(m_end - m_start))
+    f_time.close()
 
     # plot_step_per_episode(model='m3')
     # plot_score(model='m3')
@@ -924,7 +934,13 @@ if __name__ == '__main__':
     # plot_score_comparison(model1='m1', model2='m3')
     # plot_score_comparison(model1='m2', model2='m3')
 
-    # main(model='m4', n_steps=300_000 + 1, populate=True)
+    m_start = time.time()
+    main(model='m4', n_steps=300_000 + 1, populate=True)
+    m_end = time.time()
+
+    f_time = open('out/' + 'm4' + '/time.txt', "w")
+    f_time.write(str(m_end - m_start))
+    f_time.close()
 
     # plot_step_per_episode(model='m4')
     # plot_score(model='m4')
@@ -933,7 +949,5 @@ if __name__ == '__main__':
     # plot_moving_average(model='m4')
     # plot_score_comparison(model1='m1', model2='m4')
     # plot_score_comparison(model1='m2', model2='m4')
-    #
-    # plot_loss_comparison('m1', 'm2', 'm3', 'm4')
 
-    # main(model='prova', n_steps=300_000 + 1, C=50_000, populate=True)
+    # plot_loss_comparison('m1', 'm2', 'm3', 'm4')
