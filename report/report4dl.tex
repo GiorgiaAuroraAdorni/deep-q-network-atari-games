@@ -148,9 +148,11 @@
 	\texttt{OpenAI Gym} has been used to create the \textit{BreakoutNoFrameskip-v4} environment. 
 	
 	The DQN agent has three main components: an online Q-network, a target Q-network and replay buffer.
+	
 	The two networks are used to improve the stability of this method, in particular, every $C$ steps, the target network is updated with the online network parameters.
 	
 	The replay buffer of capacity $\numprint{10000}$ is composed of state, action, reward, next state, and termination flag. It will be used during the training in order to create batches by sampling them from the buffer.
+	\bigskip
 	
 	In Table \ref{tab:arc} is summarised the architecture of both the networks. 
 	
@@ -206,17 +208,17 @@
 	
 	The parameters of the online network are copied to the target network every $\numprint{10000}$ steps.
 	\bigskip
-
-	Figure \ref{fig:step-m1} shows the number of steps elapsed in each episode averaged over the last 100 episodes.
+	
+	The training process takes 4 hours and 36 minutes. Figure \ref{fig:step-m1} shows the number of steps elapsed in each episode averaged over the last 100 episodes. 
+	
+	It is clearly visible how the number of steps for episode increase over time. Since each episode corresponds to a "life of play", a greater number of steps per episode can be interpreted as an improvement in the network's ability to play the game without losing a life quickly. 
+	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
+		\includegraphics[width=.8\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
 		\caption{Steps per episode of the first experiment}
 		\label{fig:step-m1}
 	\end{figure}
-
-	It is clearly visible how the number of steps for episode increase over time. Since each episode corresponds to a "life of play", a greater number of steps per episode can be interpreted as an improvement in the network's ability to play the game without losing a life quickly. 
-	\bigskip
 	
 	Figures \ref{fig:training-return-m1} shows the return per episode, averaged over the last 30 episodes (moving average) to reduce noise, while Figure \ref{fig:evaluation-return-m1} shows scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
 	
@@ -236,7 +238,7 @@
 		\end{minipage}
 	\end{figure}
 
-	The game score obtained is $358.0$ that is, as expected, a little lower compared to the one achieved in literature, that is $401.2 \, (\pm 26.9)$, since the model presented in the paper is much more complex.
+	The maximum game score obtained is $298.93$ that is, as expected, lower compared to the one achieved in literature, that is $401.2 \, (\pm 26.9)$, since the model presented in the paper is much more complex.
 	Moreover, the trend of the curve is growing, which means that further increasing the number of steps, the score should continue to improve.
 	\bigskip
 		
@@ -245,31 +247,41 @@
 	\begin{figure}[htb]
 		\centering
 		\includegraphics[width=.7\linewidth]{../code/out/m1/img/temporal-difference-error.pdf}	
-		\caption{Loss of the first experiment}
+		\caption{Temporal-difference error of the first experiment}
 		\label{fig:loss-m1}
 	\end{figure} 
+	%FIXME
+	It is interesting to see that every time that the target network is update, hence every $\numprint{10000}$ steps, in the curve appears a pick.
 
-	\bigskip
-	The training process takes 5 hours and 18 minutes.
-	
 	\subsection*{Experiment 2}
-	The second experiment performed modifies only the value of the parameter $C$ with respect to the previous experiment. In particular, the target network is updated every $\numprint{50000}$ instead of $\numprint{10000}$.
+	The second experiment performed modifies only the value of the parameter $C$ with respect to the previous experiment. In particular, the target network is updated every $\numprint{50000}$ instead of $\numprint{10000}$. The training process takes 3 hours and 30 minutes. 
+	\bigskip
 	
-	The training process takes 4 hours. Figure \ref{fig:score-m1-m2} shows a comparison among the evaluation scores of the experiments.
+	Figure \ref{fig:score-m1-m2} shows a comparison among the evaluation scores of the experiments. It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=.7\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
+		\caption{Returns comparison}
+		\label{fig:score-m1-m2}
+	\end{figure}
+	
+	%FIXME
+	Looking at the Temporal-difference error curves, showed in Figure \ref{fig:loss-m1-m2}, as for the previous experiment, are clearly visible the picks in corrispondence of the network updated time step. For the first experiment this happens every $\numprint{10000}$ steps, for the second every $\numprint{50000}$.
 	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
-		\caption{Score comparison}
-		\label{fig:score-m1-m2}
+		\includegraphics[width=.7\linewidth]{../code/out/m1/img/comparison/m1-m2-losses-comparison.pdf}	
+		\caption{Temporal-difference errors comparison}
+		\label{fig:loss-m1-m2}
 	\end{figure}
-	It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
+	
+	The two curves have the same trend but on different scales.
 	
 	\subsection*{Experiment 3}
 	The third experiment repeats the same training procedure as the first experiment using a different environment. The Atari game tried in this case is \textit{StarGunner}. The training process takes 4 hours and 11 minutes.
 	
 	Figures \ref{fig:return-movingavg-m3} and \ref{fig:score-m3} show the return per episode (moving average) and scores across 30 independent plays.
-	
 	\begin{figure}[htb]
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
@@ -286,36 +298,18 @@
 		\end{minipage}
 	\end{figure}
 	
-	Also in this case, the return curves have a growing trend. After $1.5 M$ steps the score increases very quickly, with a peak at $3020.0$ and then slightly decreases around $2 M$ steps.
-	\bigskip
+	Also in this case, the return curves have a growing trend. After $1.5 \mathrm{M}$ steps the score increases very quickly, with a peak at $3020.0$ and then slightly decreases around $2 \mathrm{M}$ steps.\bigskip
 	
-	In Figure \ref{fig:loss-m3} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps.
+	In Figure \ref{fig:loss-m1-m3} are shown the temporal-difference errors L($\theta$) of the first and the third experiment.
+
+	The two losses have very different trends: the curve of the first experiment slowly increases, while the one referred to the third experiment initially grows up and then, when the agent learns how to play, decreases.
+
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m3/img/temporal-difference-error.pdf}	
-		\caption{Loss of the third experiment}
-		\label{fig:loss-m3}
-	\end{figure} 
-	
-	In this case, the loss does not have a low value nor a decreasing trend as for the first experiment.
-	
-	%Figures \ref{fig:score-comparison-m1-m3} and \ref{fig:score-comparison-m2-m3} FIXME
-%	
-%		\begin{figure}[htb]
-%		\begin{minipage}[b]{.49\textwidth}
-%			\centering
-%			\includegraphics[width=\linewidth]{../code/out/m3/img/comparison/scores-comparison-m1-m3.pdf}	
-%			\caption{Return per episode}
-%			\label{fig:score-comparison-m1-m3}
-%		\end{minipage}
-%		~
-%		\begin{minipage}[b]{.49\textwidth}
-%			\centering
-%			\includegraphics[width=\linewidth]{../code/out/m3/img/comparison/scores-comparison-m2-m3.pdf}	
-%			\caption{Average score per play}
-%			\label{fig:score-comparison-m2-m3}
-%		\end{minipage}
-%	\end{figure}
+		\includegraphics[width=.7\linewidth]{../code/out/m1/img/comparison/m1-m3-losses-comparison.pdf}	
+		\caption{Temporal-difference errors comparison}
+		\label{fig:loss-m1-m3}
+	\end{figure}
 
 	
 	\subsection*{Experiment 4}
@@ -344,13 +338,13 @@
 	\begin{figure}[htb]
 		\centering
 		\includegraphics[width=.7\linewidth]{../code/out/m4/img/comparison/scores-comparison-m1-m4.pdf}	
-		\caption{Score comparison}
+		\caption{Returns comparison}
 		\label{fig:score-m1-m4}
 	\end{figure}
 	
-	The evaluation return obtained during this experiment is $14.33$, that is similar to the one obtained in the first experiment at the same time step, that is $15.03$.
+	The evaluation return obtained during this experiment is $14.33$, that is close to the one obtained in the first experiment at the same time step, that is $15.03$.
 	
-	The similar results are probably due the limited capacity of the replay buffer. In fact, after only $\numprint{10000}$ steps, the past data experiences are replaced.
+	The similar results are probably due to the limited capacity of the replay buffer. In fact, after only $\numprint{10000}$ steps, the past data experiences are replaced, and the behaviour of the new model is the same as the previous.
 	
 	
 \end{document}
