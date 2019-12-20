@@ -1,12 +1,9 @@
 import os
 import time
-from collections import Counter
 
 import gym
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow.compat.v1 as tf
-from matplotlib.ticker import EngFormatter
 
 from atari_wrappers import make_atari, wrap_deepmind
 
@@ -591,256 +588,8 @@ def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_st
     session.close()
 
 
-def plot_step_per_episode(model):
-    """
-
-    :param model:
-    :return:
-    """
-    out_dir = 'out/' + model + '/img/'
-    check_dir(out_dir)
-
-    input_dir = 'out/' + model + '/step-per-episode.txt'
-
-    with open(input_dir, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    episodes = lines[:, 1].astype(np.int)
-
-    episode_counter = Counter(episodes)  # number of steps for episode
-
-    plt.figure()
-
-    plt.plot(np.array(list(episode_counter.keys()))[::len(episode_counter) // 50],
-             np.array(list(episode_counter.values()))[::len(episode_counter) // 50])
-
-    plt.xlabel('episode', fontsize=11)
-    plt.ylabel('step', fontsize=11)
-
-    plt.title('Steps per Episode: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'step-per-episode.pdf')
-    plt.close()
-
-
-def plot_return(model):
-    """
-
-    :param model:
-    """
-    out_dir = 'out/' + model + '/img/'
-    check_dir(out_dir)
-
-    input_dir = 'out/' + model + '/return.txt'
-
-    with open(input_dir, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    steps = lines[:, 0].astype(np.int)
-    scores = lines[:, 2].astype(np.float)
-
-    steps = steps.astype(np.float)
-    scores = scores.astype(np.float)
-
-    plt.figure()
-
-    plt.plot(steps, scores)
-
-    plt.xlabel('step', fontsize=11)
-    plt.ylabel('average score per play', fontsize=11)
-
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(EngFormatter())
-
-    plt.title('Evaluation Return: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'evaluation-return.pdf')
-    plt.close()
-
-
-def plot_loss_moving_average(model):
-    """
-
-    :param model:
-    :return:
-    """
-
-    out_dir = 'out/' + model + '/img/'
-    check_dir(out_dir)
-
-    input_dir = 'out/' + model + '/loss.txt'
-
-    with open(input_dir, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    steps = lines[:, 0].astype(np.int)
-    losses = lines[:, 2].astype(np.float)
-
-    losses = moving_average(losses, window=50)
-
-    plt.figure()
-    plt.plot(steps[50::1000], losses[::1000])
-
-    plt.xlabel('step', fontsize=11)
-    plt.ylabel('loss', fontsize=11)
-
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(EngFormatter())
-
-    plt.title('Temporal difference error: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'temporal-difference-error.pdf')
-    plt.close()
-
-
-def plot_return_moving_average(model):
-    """
-
-    :param model:
-    """
-    out_dir = 'out/' + model + '/img/'
-    check_dir(out_dir)
-
-    input_dir = 'out/' + model + '/return_moving_average.txt'
-
-    with open(input_dir, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    return_moving_averages = lines[:, 0].astype(np.float)
-
-    episodes = np.arange(30, len(return_moving_averages) + 30)
-
-    plt.figure()
-
-    plt.plot(episodes, return_moving_averages)
-
-    plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('return per episode', fontsize=11)
-
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(EngFormatter())
-
-    plt.title('Training Return: "' + model + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'training-return.pdf')
-    plt.close()
-
-
-def plot_return_comparison(model1, model2, label1, label2):
-    """
-
-    :param model1:
-    :param model2:
-    """
-    out_dir = 'out/' + model2 + '/img/comparison/'
-    check_dir(out_dir)
-
-    input_dir1 = 'out/' + model1 + '/return.txt'
-    input_dir2 = 'out/' + model2 + '/return.txt'
-
-    with open(input_dir1, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    steps1 = lines[:, 0]
-    steps1 = steps1.astype(np.float)
-
-    score1 = lines[:, 2]
-    score1 = score1.astype(np.float)
-
-    with open(input_dir2, 'r') as f:
-        lines = f.readlines()[1:]
-        lines = np.array(lines)
-        lines = np.char.strip(lines, '\n')
-        lines = np.array([x.split(',') for x in lines])
-
-    steps2 = lines[:, 0].astype(np.float)
-
-    score2 = lines[:, 2].astype(np.float)
-
-    plt.figure()
-
-    plt.plot(steps1, score1, label=label1)
-    plt.plot(steps2, score2, label=label2)
-
-    plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('score', fontsize=11)
-
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(EngFormatter())
-
-    plt.legend()
-    plt.title('Score comparison among model "' + model1 + '" and "' + model2 + '"', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'scores-comparison-' + model1 + '-' + model2 + '.pdf')
-    plt.close()
-
-
-def plot_loss_comparison(model1, model2, model3, model4):
-    """
-
-    :param model1:
-    :param model2:
-    """
-    out_dir = 'out/' + model1 + '/img/comparison/'
-    check_dir(out_dir)
-
-    input_dir1 = 'out/' + model1 + '/loss.txt'
-    input_dir2 = 'out/' + model2 + '/loss.txt'
-    input_dir3 = 'out/' + model3 + '/loss.txt'
-    input_dir4 = 'out/' + model4 + '/loss.txt'
-
-    inputs = [input_dir1, input_dir2, input_dir3, input_dir4]
-
-    steps = []
-    losses = []
-
-    for i, e in enumerate(inputs):
-        with open(e, 'r') as f:
-            lines = f.readlines()[1:]
-            lines = np.array(lines)
-            lines = np.char.strip(lines, '\n')
-            lines = np.array([x.split(',') for x in lines])
-
-            steps.append(lines[:, 0].astype(np.int))
-            losses.append(lines[:, 2].astype(np.float))
-
-    lenghts = [len(l) for l in losses]
-    indices = [np.arange(0, i, i // 100) for i in lenghts]
-
-    l = [np.array(losses[idx])[ind] for idx, ind in enumerate(indices)]
-
-    plt.figure()
-
-    plt.plot(indices[0], l[0], label='Loss ' + model1)
-    plt.plot(indices[1], l[1], label='Loss ' + model2)
-    plt.plot(indices[2], l[2], label='Loss ' + model3)
-    plt.plot(indices[3], l[3], label='Loss ' + model4)
-
-    plt.xlabel('episodes', fontsize=11)
-    plt.ylabel('loss', fontsize=11)
-
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(EngFormatter())
-    ax.yaxis.set_major_formatter(EngFormatter())
-    ax.set_yscale('log')
-
-    plt.legend()
-    plt.title('Loss comparison among all the models', weight='bold', fontsize=12)
-    plt.savefig(out_dir + 'losses-comparison.pdf')
-    plt.close()
-
-
 if __name__ == '__main__':
+    # # Experiment 1
     # m_start = time.time()
     # main(model='m1')
     # m_end = time.time()
@@ -849,12 +598,7 @@ if __name__ == '__main__':
     # f_time.write(str(m_end - m_start))
     # f_time.close()
     #
-    plot_step_per_episode(model='m1')
-    plot_return(model='m1')
-    plot_loss_moving_average(model='m1')
-    plot_return_moving_average(model='m1')
-
-    # Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
+    # # Experiment 2: Instead of updating the target network every C = 10,000 steps, experiment with C = 50,000.
     # m_start = time.time()
     # main(model='m2-test', C=50_000)
     # m_end = time.time()
@@ -862,17 +606,8 @@ if __name__ == '__main__':
     # f_time = open('out/' + 'm2' + '/time.txt', "w")
     # f_time.write(str(m_end - m_start))
     # f_time.close()
-
-    plot_step_per_episode(model='m2')
-    plot_return(model='m2')
-    plot_loss_moving_average(model='m2')
-    plot_return_moving_average(model='m2')
-
-    # Compare in a single plot the average score across evaluations obtained by these two alternatives.
-    # How do you explain the differences?
-    plot_return_comparison(model1='m1', model2='m2', label1='C = 10 k', label2='C = 50 k')
-
-    # Experiment with a different Atari game.
+    #
+    # # Experiment 3: Different Atari Game
     # m_start = time.time()
     # main(model='m3', env_name='StarGunnerNoFrameskip-v4')
     # m_end = time.time()
@@ -880,15 +615,8 @@ if __name__ == '__main__':
     # f_time = open('out/' + 'm3' + '/time.txt', "w")
     # f_time.write(str(m_end - m_start))
     # f_time.close()
-
-    plot_step_per_episode(model='m3')
-    plot_return(model='m3')
-    plot_loss_moving_average(model='m3')
-    plot_return_moving_average(model='m3')
-
-    plot_return_comparison(model1='m1', model2='m3', label1='Breakout, C = 10 k', label2='StarGunner')
-    plot_return_comparison(model1='m2', model2='m3', label1='Breakout, C = 50 k', label2='StarGunner')
-
+    #
+    # # Experiment 4
     # m_start = time.time()
     # main(model='m4', n_steps=300_000 + 1, populate=True)
     # m_end = time.time()
@@ -896,15 +624,7 @@ if __name__ == '__main__':
     # f_time = open('out/' + 'm4' + '/time.txt', "w")
     # f_time.write(str(m_end - m_start))
     # f_time.close()
-    #
-    plot_step_per_episode(model='m4')
-    plot_return(model='m4')
-    plot_loss_moving_average(model='m4')
-    plot_return_moving_average(model='m4')
 
-    plot_return_comparison(model1='m1', model2='m4',
-                           label1='C = 10 k, empty buffer', label2='C = 10 k, pre-filled buffer')
-    plot_return_comparison(model1='m2', model2='m4',
-                           label1='C = 50 k, empty buffer', label2='C = 50 k, pre-filled buffer')
-
-    plot_loss_comparison('m1', 'm2', 'm3', 'm4')
+    from my_plots import save_plots
+    # Plot
+    save_plots()
