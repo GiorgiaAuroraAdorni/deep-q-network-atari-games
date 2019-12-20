@@ -207,8 +207,7 @@
 	The parameters of the online network are copied to the target network every $\numprint{10000}$ steps.
 	\bigskip
 
-	Figure \ref{fig:step-m1} shows a subsampling of the number of steps elapsed in each episode.
-	
+	Figure \ref{fig:step-m1} shows the number of steps elapsed in each episode averaged over the last 100 episodes.
 	\begin{figure}[htb]
 		\centering
 		\includegraphics[width=.7\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
@@ -267,9 +266,9 @@
 	It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
 	
 	\subsection*{Experiment 3}
-	The third experiment repeats the same training procedure of the first experiment using a different environment. The Atari game used in this case is \textit{StarGunner}.
+	The third experiment repeats the same training procedure as the first experiment using a different environment. The Atari game tried in this case is \textit{StarGunner}. The training process takes 4 hours and 11 minutes.
 	
-	Figures \ref{fig:return-movingavg-m3} and \ref{fig:score-m3} show the return per episode, averaged over the last 30 episodes (moving average) to reduce noise and scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
+	Figures \ref{fig:return-movingavg-m3} and \ref{fig:score-m3} show the return per episode (moving average) and scores across 30 independent plays.
 	
 	\begin{figure}[htb]
 		\begin{minipage}[b]{.49\textwidth}
@@ -287,28 +286,44 @@
 		\end{minipage}
 	\end{figure}
 	
-	The game score obtained is $358.0$ that is, as expected, a little lower compared to the one achieved in literature, that is $401.2 (\pm 26.9)$, since the model is more complex.
-	
+	Also in this case, the return curves have a growing trend. After $1.5 M$ steps the score increases very quickly, with a peak at $3020.0$ and then slightly decreases around $2 M$ steps.
 	\bigskip
 	
-	At the end, in Figure \ref{fig:loss-m3} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps in order to reduce noise.
+	In Figure \ref{fig:loss-m3} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps.
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m3/img/temporal-difference-error.pdf}	
+		\includegraphics[width=.7\linewidth]{../code/out/m3/img/temporal-difference-error.pdf}	
 		\caption{Loss of the third experiment}
 		\label{fig:loss-m3}
 	\end{figure} 
 	
+	In this case, the loss does not have a low value nor a decreasing trend as for the first experiment.
 	
-	% FIXME time
-	It is also useful to estimate the remaining training time based on the average time that each step requires.
+	%Figures \ref{fig:score-comparison-m1-m3} and \ref{fig:score-comparison-m2-m3} FIXME
+%	
+%		\begin{figure}[htb]
+%		\begin{minipage}[b]{.49\textwidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{../code/out/m3/img/comparison/scores-comparison-m1-m3.pdf}	
+%			\caption{Return per episode}
+%			\label{fig:score-comparison-m1-m3}
+%		\end{minipage}
+%		~
+%		\begin{minipage}[b]{.49\textwidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{../code/out/m3/img/comparison/scores-comparison-m2-m3.pdf}	
+%			\caption{Average score per play}
+%			\label{fig:score-comparison-m2-m3}
+%		\end{minipage}
+%	\end{figure}
+
 	
 	\subsection*{Experiment 4}
-	The last experiment tries to improve the results obtained in the first experiment with the \texttt{Breakout} environment, using the data recorded from $10000$ gameplay steps to populate the replay buffer.
-	In this case the model is trained for $300000$ steps.
+	The last experiment tries to improve the results for \texttt{Breakout} obtained in the first experiment, using the data recorded from $\numprint{10000}$ gameplay steps to populate the replay buffer.
+	In this case the model is trained for $\numprint{300000}$ steps and the process takes 31 minutes.
 	\bigskip
 
-	Figures \ref{fig:return-movingavg-m4} and \ref{fig:score-m4} show the return per episode, averaged over the last 30 episodes (moving average) to reduce noise and scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
+	Figures \ref{fig:return-movingavg-m4} and \ref{fig:score-m4} show the return per episode (moving average) and scores across 30 independent plays
 	
 	\begin{figure}[h]
 		\begin{minipage}[b]{.49\textwidth}
@@ -325,19 +340,17 @@
 			\label{fig:score-m4}
 		\end{minipage}
 	\end{figure}
-	
-	The game score obtained is $17.17$ that is similar to the one obtained in the first experiment at the same step, that is $19.47$.
-	
-	\bigskip
-	
-	In Figure \ref{fig:score-m1-m4} is shown a comparison among the evaluation scores of the first and the last experiments.
-	
+
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m4/img/comparison/scores-comparison-m1-m4.pdf}	
+		\includegraphics[width=.7\linewidth]{../code/out/m4/img/comparison/scores-comparison-m1-m4.pdf}	
 		\caption{Score comparison}
 		\label{fig:score-m1-m4}
 	\end{figure}
+	
+	The evaluation return obtained during this experiment is $14.33$, that is similar to the one obtained in the first experiment at the same time step, that is $15.03$.
+	
+	The similar results are probably due the limited capacity of the replay buffer. In fact, after only $\numprint{10000}$ steps, the past data experiences are replaced.
 	
 	
 \end{document}
