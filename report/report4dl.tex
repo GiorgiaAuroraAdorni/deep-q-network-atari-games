@@ -36,6 +36,8 @@
 
 \usepackage{framed}
 
+\usepackage{numprint}
+
  \newcommand*\quotefont{\fontfamily{LinuxLibertineT-LF}} % selects Libertine as 
  %the quote font
 
@@ -148,7 +150,7 @@
 	The DQN agent has three main components: an online Q-network, a target Q-network and replay buffer.
 	The two networks are used to improve the stability of this method, in particular, every $C$ steps, the target network is updated with the online network parameters.
 	
-	The replay buffer of capacity $10000$ is composed of state, action, reward, next state, and termination flag. It will be used during the training in order to create batches by sampling them from the buffer.
+	The replay buffer of capacity $\numprint{10000}$ is composed of state, action, reward, next state, and termination flag. It will be used during the training in order to create batches by sampling them from the buffer.
 	
 	In Table \ref{tab:arc} is summarised the architecture of both the networks. 
 	
@@ -170,40 +172,46 @@
 		\label{tab:arc}
 	\end{figure}
 	
-	
 	\section{Tasks}
 	\label{section:tasks}
 	
-	\subsection{Wrappers}
-	The \texttt{FrameStack} wrappers is used to stack the last $k$ frames returning a lazy array, which is a structure much more memory efficient.
-
-	The \texttt{ScaledFloatFrame} wrapper rescales the value of the pixels initially comprised between 0 and 255 between 0-1.
+	\subsection*{Wrappers}
+	\begin{itemize}
+		\item The \texttt{FrameStack} wrappers is used to stack the last $k$ frames returning a lazy array, which is a structure much more memory efficient.
+		\item The \texttt{ScaledFloatFrame} wrapper rescales the value of the pixels initially comprised between 0 and 255 between 0-1.
+		\item The \texttt{MaxAndSkipEnv} wrapper is used to reduce the number of frame, hence the quantity of data to process. In order to do this, firstly it skips some frames of the game play. Then, for all the skipped frames, it continually repeats the same action, sums the rewards in order not to lose information and at the end, for each pixel of the frame, the maximum pixel value is chosen among all the frames skipped.
+		\item The \texttt{ClipRewardEnv} wrapper classifies the reward as $+1$, $0$ or $-1$ according its sign.
+	\end{itemize}
 	
-	The \texttt{MaxAndSkipEnv} wrapper is used to reduce the number of frame, hence the quantity of data to process. In order to do this, firstly it skips some frames of the game play. Then, for all the skipped frames, it continually repeats the same action, sums the rewards in order not to lose information and at the end, for each pixel of the frame, the maximum pixel value is chosen among all the frames skipped.
-	 	 
-	The \texttt{ClipRewardEnv} wrapper classifies the reward as $+1$, $0$ or $-1$ according its sign.
-
 	
-	\subsection{Online Q-network and Target Q-network}	
+	\subsection*{Online Q-network and Target Q-network}	
 	As mention in Section \ref{section:agent}, the addition of the target network, the this used to generate targets in the Q-learning update, improves the stability of the presented method. In particular, every $C$ steps, the target network is updated with the online network parameters.
 	This procedure adds a delay between the time between the time the network is updated and the time when the update affects the target, making divergence or oscillations much more unlikely.
 	
-	\subsection{$\epsilon$-greedy policy}
+	\subsection*{$\epsilon$-greedy policy}
 	%FIXME
 	
 	Acting according to an $\epsilon$-greedy policy ensure an adequate exploration of the environment in order to learn about potentially (could be better or worse) new sources of reward, instead of exploit the well-known sources of reward.
 	
 	For a given state $s$, the $\epsilon$-greedy policy with respect to Q chooses a random action with probability $\epsilon$, and an action $\arg \max_a Q(s, a)$ with probability $1 - \epsilon$.
 	
-	\subsection{Experiment 1}
-	The first experiment includes a training phase the takes $2000000$ steps. 
-	Root mean square prop (\texttt{RMSprop}) is used as optimiser.
+	\section{Experiments}
+	\subsection*{Experiment 1}
+	The first experiment includes a training phase in which the agent interact with the environment for a total of $\numprint{2000000}$ steps.
 	
+	The replay buffer is initially empty, and the networks are not updated until it is populated with $\numprint{10000}$ transitions. 
+	
+	Every 4 steps, a batch composed 32 transitions is sampled from the replay buffer and used to update the parameters of the online Q-network.
+	Root mean square prop (\texttt{RMSPropOptimizer}) is used as optimiser to minimise the temporal-difference error, with learning rate of ${0.0001}$ and a decay of $0.99$. 
+	
+	The parameters of the online network are copied to the target network every $\numprint{10000}$ steps.
+	\bigskip
+
 	Figure \ref{fig:step-m1} shows a subsampling of the number of steps elapsed in each episode.
 	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
+		\includegraphics[width=.7\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
 		\caption{Steps per episode of the first experiment}
 		\label{fig:step-m1}
 	\end{figure}
@@ -211,76 +219,70 @@
 	It is clearly visible how the number of steps for episode increase over time. Since each episode corresponds to a "life of play", a greater number of steps per episode can be interpreted as an improvement in the network's ability to play the game without losing a life quickly. 
 	\bigskip
 	
-	Figures \ref{fig:return-movingavg-m1} and \ref{fig:score-m1} show the return per episode, averaged over the last 30 episodes (moving average) to reduce noise and scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
+	Figures \ref{fig:training-return-m1} shows the return per episode, averaged over the last 30 episodes (moving average) to reduce noise, while Figure \ref{fig:evaluation-return-m1} shows scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
 	
 	\begin{figure}[htb]
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m1/img/score-moving-average.pdf}	
+			\includegraphics[width=\linewidth]{../code/out/m1/img/training-return.pdf}	
 			\caption{Return per episode}
-			\label{fig:return-movingavg-m1}
+			\label{fig:training-return-m1}
 		\end{minipage}
 		~
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m1/img/score.pdf}	
-			\caption{Score}
-			\label{fig:score-m1}
+			\includegraphics[width=\linewidth]{../code/out/m1/img/evaluation-return.pdf}	
+			\caption{Average score per play}
+			\label{fig:evaluation-return-m1}
 		\end{minipage}
 	\end{figure}
 
-	The game score obtained is $358.0$ that is, as expected, a little lower compared to the one achieved in literature, that is $401.2 (\pm 26.9)$, since the model is more complex.
-	
+	The game score obtained is $358.0$ that is, as expected, a little lower compared to the one achieved in literature, that is $401.2 \, (\pm 26.9)$, since the model presented in the paper is much more complex.
+	Moreover, the trend of the curve is growing, which means that further increasing the number of steps, the score should continue to improve.
 	\bigskip
 		
-	At the end, in Figure \ref{fig:loss-m1} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps in order to reduce noise.
+	In Figure \ref{fig:loss-m1} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps in order to reduce noise.
+	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m1/img/loss-moving-average.pdf}	
+		\includegraphics[width=.7\linewidth]{../code/out/m1/img/temporal-difference-error.pdf}	
 		\caption{Loss of the first experiment}
 		\label{fig:loss-m1}
 	\end{figure} 
 
-
-	% FIXME time
-	It is also useful to estimate the remaining training time based on the average time that each step requires.
+	\bigskip
+	The training process takes 5 hours and 18 minutes.
 	
-	\subsection{Experiment 2}
-	The second experiment performed modifies only the value of the parameter $C$ with respect to the previous experiment. In particular, the target network is updated every $50000$ instead of $10000$.
+	\subsection*{Experiment 2}
+	The second experiment performed modifies only the value of the parameter $C$ with respect to the previous experiment. In particular, the target network is updated every $\numprint{50000}$ instead of $\numprint{10000}$.
 	
-	Figure \ref{fig:score-m1-m2} shows a comparison among the evaluation scores of the experiments.
+	The training process takes 4 hours. Figure \ref{fig:score-m1-m2} shows a comparison among the evaluation scores of the experiments.
 	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
+		\includegraphics[width=.7\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
 		\caption{Score comparison}
 		\label{fig:score-m1-m2}
 	\end{figure}
+	It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
 	
-	%FIXME
-	It is clearly visible how … 
-	\bigskip
-	
-	%FIXME
-	time
-	
-	\subsection{Experiment 3}
-	The third experiment repeats the training procedure with a different environment. The Atari game used in this case is \textit{StarGunner}.
+	\subsection*{Experiment 3}
+	The third experiment repeats the same training procedure of the first experiment using a different environment. The Atari game used in this case is \textit{StarGunner}.
 	
 	Figures \ref{fig:return-movingavg-m3} and \ref{fig:score-m3} show the return per episode, averaged over the last 30 episodes (moving average) to reduce noise and scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
 	
 	\begin{figure}[htb]
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m3/img/score-moving-average.pdf}	
+			\includegraphics[width=\linewidth]{../code/out/m3/img/training-return.pdf}	
 			\caption{Return per episode}
 			\label{fig:return-movingavg-m3}
 		\end{minipage}
 		~
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m3/img/score.pdf}	
-			\caption{Score}
+			\includegraphics[width=\linewidth]{../code/out/m3/img/evaluation-return.pdf}	
+			\caption{Average score per play}
 			\label{fig:score-m3}
 		\end{minipage}
 	\end{figure}
@@ -292,7 +294,7 @@
 	At the end, in Figure \ref{fig:loss-m3} is shown a subsample of the temporal-difference error L($\theta$) averaged over the last 50 steps in order to reduce noise.
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m3/img/loss-moving-average.pdf}	
+		\includegraphics[width=.8\linewidth]{../code/out/m3/img/temporal-difference-error.pdf}	
 		\caption{Loss of the third experiment}
 		\label{fig:loss-m3}
 	\end{figure} 
@@ -301,7 +303,7 @@
 	% FIXME time
 	It is also useful to estimate the remaining training time based on the average time that each step requires.
 	
-	\subsection{Experiment 4}
+	\subsection*{Experiment 4}
 	The last experiment tries to improve the results obtained in the first experiment with the \texttt{Breakout} environment, using the data recorded from $10000$ gameplay steps to populate the replay buffer.
 	In this case the model is trained for $300000$ steps.
 	\bigskip
@@ -311,15 +313,15 @@
 	\begin{figure}[h]
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m4/img/score-moving-average.pdf}	
+			\includegraphics[width=\linewidth]{../code/out/m4/img/training-return.pdf}	
 			\caption{Return per episode}
 			\label{fig:return-movingavg-m4}
 		\end{minipage}
 		~
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
-			\includegraphics[width=\linewidth]{../code/out/m4/img/score.pdf}	
-			\caption{Score}
+			\includegraphics[width=\linewidth]{../code/out/m4/img/evaluation-return.pdf}	
+			\caption{Average score per play}
 			\label{fig:score-m4}
 		\end{minipage}
 	\end{figure}
