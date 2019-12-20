@@ -179,32 +179,36 @@
 	
 	\subsection*{Wrappers}
 	\begin{itemize}
-		\item The \texttt{FrameStack} wrappers is used to stack the last $k$ frames returning a lazy array, which is a structure much more memory efficient.
+		\item The \texttt{FrameStack} wrapper is used to stack the last $k$ frames returning a lazy array, which is a structure much more memory efficient.
 		\item The \texttt{ScaledFloatFrame} wrapper rescales the value of the pixels initially comprised between 0 and 255 between 0-1.
-		\item The \texttt{MaxAndSkipEnv} wrapper is used to reduce the number of frame, hence the quantity of data to process. In order to do this, firstly it skips some frames of the game play. Then, for all the skipped frames, it continually repeats the same action, sums the rewards in order not to lose information and at the end, for each pixel of the frame, the maximum pixel value is chosen among all the frames skipped.
-		\item The \texttt{ClipRewardEnv} wrapper classifies the reward as $+1$, $0$ or $-1$ according its sign.
+		\item The \texttt{MaxAndSkipEnv} wrapper is used to reduce the number of frames, hence the quantity of data to process. In order to do this, firstly it skips some frames of the gameplay. Then, for all the skipped frames, it continually repeats the same action, sums the rewards in order not to lose information and at the end, for each pixel of the frame, the maximum pixel value is chosen among all the frames skipped.
+		\item The \texttt{ClipRewardEnv} wrapper classifies the reward as $+1$, $0$ or $-1$ accordingly its sign.
 	\end{itemize}
 	
 	
 	\subsection*{Online Q-network and Target Q-network}	
-	As mention in Section \ref{section:agent}, the addition of the target network, the this used to generate targets in the Q-learning update, improves the stability of the presented method. In particular, every $C$ steps, the target network is updated with the online network parameters.
-	This procedure adds a delay between the time between the time the network is updated and the time when the update affects the target, making divergence or oscillations much more unlikely.
+	As mentioned in Section \ref{section:agent}, "Reinforcement learning is known to be unstable or even to diverge when a nonlinear function approximator such as a neural network is used to represent the action-value function".
+	
+	The addition of the target network, used to generate targets in the Q-learning update, improves the stability of the presented method. 
+	In particular, has been applied an iterative update that adjusts the action-values towards target values that are only periodically updated, every $C$ steps, reducing the correlations with the target.
+	
+	This procedure adds a delay between the time the network is updated and the time when the update affects the target, making divergence or oscillations much more unlikely.
 	
 	\subsection*{$\epsilon$-greedy policy}
-	%FIXME
-	
-	Acting according to an $\epsilon$-greedy policy ensure an adequate exploration of the environment in order to learn about potentially (could be better or worse) new sources of reward, instead of exploit the well-known sources of reward.
+	Acting according to an $\epsilon$-greedy policy ensures an adequate exploration of the environment in order to learn about potentially (could be better or worse) new sources of reward, instead of exploiting the well-known sources of reward.
 	
 	For a given state $s$, the $\epsilon$-greedy policy with respect to Q chooses a random action with probability $\epsilon$, and an action $\arg \max_a Q(s, a)$ with probability $1 - \epsilon$.
 	
+	In particular, the paper illustrates an algorithm that selects the behaviour distribution using an $\epsilon$-greedy policy that follows the greedy policy with probability $1 - \epsilon$ and selects a random action with probability $\epsilon$.
+	
 	\section{Experiments}
 	\subsection*{Experiment 1}
-	The first experiment includes a training phase in which the agent interact with the environment for a total of $\numprint{2000000}$ steps.
+	The first experiment includes a training phase in which the agent interacts with the environment for a total of $\numprint{2000000}$ steps.
 	
 	The replay buffer is initially empty, and the networks are not updated until it is populated with $\numprint{10000}$ transitions. 
 	
-	Every 4 steps, a batch composed 32 transitions is sampled from the replay buffer and used to update the parameters of the online Q-network.
-	Root mean square prop (\texttt{RMSPropOptimizer}) is used as optimiser to minimise the temporal-difference error, with learning rate of ${0.0001}$ and a decay of $0.99$. 
+	Every 4 steps, a batch composed of 32 transitions is sampled from the replay buffer and used to update the parameters of the online Q-network.
+	Root mean square prop (\texttt{RMSPropOptimizer}) is used as optimiser to minimise the temporal-difference error, with a learning rate of ${0.0001}$ and a decay of $0.99$. 
 	
 	The parameters of the online network are copied to the target network every $\numprint{10000}$ steps.
 	\bigskip
@@ -212,17 +216,16 @@
 	The training process takes 4 hours and 36 minutes. Figure \ref{fig:step-m1} shows the number of steps elapsed in each episode averaged over the last 100 episodes. 
 	
 	It is clearly visible how the number of steps for episode increase over time. Since each episode corresponds to a "life of play", a greater number of steps per episode can be interpreted as an improvement in the network's ability to play the game without losing a life quickly. 
-	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.8\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
+		\includegraphics[width=.75\linewidth]{../code/out/m1/img/step-per-episode.pdf}	
 		\caption{Steps per episode of the first experiment}
 		\label{fig:step-m1}
 	\end{figure}
 	
 	Figures \ref{fig:training-return-m1} shows the return per episode, averaged over the last 30 episodes (moving average) to reduce noise, while Figure \ref{fig:evaluation-return-m1} shows scores across 30 independent plays, that correspond to the sum of the return obtained across a sequence of 5 different episodes.
 	
-	\begin{figure}[htb]
+	\begin{figure}[H]
 		\begin{minipage}[b]{.49\textwidth}
 			\centering
 			\includegraphics[width=\linewidth]{../code/out/m1/img/training-return.pdf}	
@@ -246,40 +249,38 @@
 	
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m1/img/temporal-difference-error.pdf}	
+		\includegraphics[width=.75\linewidth]{../code/out/m1/img/temporal-difference-error.pdf}	
 		\caption{Temporal-difference error of the first experiment}
 		\label{fig:loss-m1}
 	\end{figure} 
-	%FIXME
-	It is interesting to see that every time that the target network is update, hence every $\numprint{10000}$ steps, in the curve appears a pick.
+
+	It is interesting to see that every time that the target network is updates, hence every $\numprint{10000}$ steps, in the curve appears a pick.
 
 	\subsection*{Experiment 2}
 	The second experiment performed modifies only the value of the parameter $C$ with respect to the previous experiment. In particular, the target network is updated every $\numprint{50000}$ instead of $\numprint{10000}$. The training process takes 3 hours and 30 minutes. 
 	\bigskip
 	
-	Figure \ref{fig:score-m1-m2} shows a comparison among the evaluation scores of the experiments. It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
+	Figure \ref{fig:score-m1-m2} shows a comparison of the evaluation scores of the experiments. It is clearly visible how, by reducing the frequency of the updates, the network slows down the learning.
 	
-	\begin{figure}[H]
+	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
+		\includegraphics[width=.65\linewidth]{../code/out/m2/img/comparison/scores-comparison-m1-m2.pdf}	
 		\caption{Returns comparison}
 		\label{fig:score-m1-m2}
 	\end{figure}
+	\bigskip
 	
-	%FIXME
-	Looking at the Temporal-difference error curves, showed in Figure \ref{fig:loss-m1-m2}, as for the previous experiment, are clearly visible the picks in corrispondence of the network updated time step. For the first experiment this happens every $\numprint{10000}$ steps, for the second every $\numprint{50000}$.
+	Looking at the Temporal-difference error curves, shown in Figure \ref{fig:loss-m1-m2}, as for the previous experiment, are clearly visible the picks in correspondence of the network updated time step. For the first experiment, this happens every $\numprint{10000}$ steps, for the second every $\numprint{50000}$. Moreover, the two curves have the same trend but with different scales.
 	
-	\begin{figure}[htb]
+	\begin{figure}[H]
 		\centering
 		\includegraphics[width=.7\linewidth]{../code/out/m1/img/comparison/m1-m2-losses-comparison.pdf}	
 		\caption{Temporal-difference errors comparison}
 		\label{fig:loss-m1-m2}
 	\end{figure}
 	
-	The two curves have the same trend but on different scales.
-	
 	\subsection*{Experiment 3}
-	The third experiment repeats the same training procedure as the first experiment using a different environment. The Atari game tried in this case is \textit{StarGunner}. The training process takes 4 hours and 11 minutes.
+	The third experiment repeats the same training procedure as the first experiment using a different environment. The Atari game tried, in this case, is \textit{StarGunner}. The training process takes 4 hours and 11 minutes.
 	
 	Figures \ref{fig:return-movingavg-m3} and \ref{fig:score-m3} show the return per episode (moving average) and scores across 30 independent plays.
 	\begin{figure}[htb]
@@ -298,7 +299,7 @@
 		\end{minipage}
 	\end{figure}
 	
-	Also in this case, the return curves have a growing trend. After $1.5 \mathrm{M}$ steps the score increases very quickly, with a peak at $3020.0$ and then slightly decreases around $2 \mathrm{M}$ steps.\bigskip
+	Also in this case, the return curves have a growing trend. After $1.5 \mathrm{M}$ steps, the score increases very quickly, with a peak at $3020.0$ and then slightly decreases around $2 \mathrm{M}$ steps.\bigskip
 	
 	In Figure \ref{fig:loss-m1-m3} are shown the temporal-difference errors L($\theta$) of the first and the third experiment.
 
@@ -306,7 +307,7 @@
 
 	\begin{figure}[htb]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m1/img/comparison/m1-m3-losses-comparison.pdf}	
+		\includegraphics[width=.75\linewidth]{../code/out/m1/img/comparison/m1-m3-losses-comparison.pdf}	
 		\caption{Temporal-difference errors comparison}
 		\label{fig:loss-m1-m3}
 	\end{figure}
@@ -314,7 +315,7 @@
 	
 	\subsection*{Experiment 4}
 	The last experiment tries to improve the results for \texttt{Breakout} obtained in the first experiment, using the data recorded from $\numprint{10000}$ gameplay steps to populate the replay buffer.
-	In this case the model is trained for $\numprint{300000}$ steps and the process takes 31 minutes.
+	In this case, the model is trained for $\numprint{300000}$ steps and the process takes 31 minutes.
 	\bigskip
 
 	Figures \ref{fig:return-movingavg-m4} and \ref{fig:score-m4} show the return per episode (moving average) and scores across 30 independent plays
@@ -335,9 +336,9 @@
 		\end{minipage}
 	\end{figure}
 
-	\begin{figure}[htb]
+	\begin{figure}[H]
 		\centering
-		\includegraphics[width=.7\linewidth]{../code/out/m4/img/comparison/scores-comparison-m1-m4.pdf}	
+		\includegraphics[width=.75\linewidth]{../code/out/m4/img/comparison/scores-comparison-m1-m4.pdf}	
 		\caption{Returns comparison}
 		\label{fig:score-m1-m4}
 	\end{figure}
