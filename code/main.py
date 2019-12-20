@@ -7,7 +7,7 @@ import tensorflow.compat.v1 as tf
 
 from atari_wrappers import make_atari, wrap_deepmind
 
-## Global TensorFlow Configuration
+# Global TensorFlow Configuration
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 
 # Instruct TensorFlow to use only the first GPU of the system.
@@ -21,9 +21,8 @@ for device in gpu_devices:
 # Instruct the Linux kernel to preferably kill this process instead of its
 # ancestors in an OOM situation. This prevents cases in which the SSH server is
 # killed, blocking any further access to the machine.
-# FIXME
-# with open('/proc/self/oom_score_adj', 'w') as f:
-#     f.write('1000\n')
+with open('/proc/self/oom_score_adj', 'w') as f:
+    f.write('1000\n')
 
 
 class ReplayBuffer(object):
@@ -35,24 +34,21 @@ class ReplayBuffer(object):
     def append(self, data):
         """
 
-        :param data:
-        :return:
+        :param data: data to append to the buffer
         """
         self.buffer[self.counter] = data
         self.counter = np.mod(self.counter + 1, self.capacity)
 
     def fill(self, data):
         """
-
-        :param data:
-        :return:
+        :param data: data to use to fill the buffer
         """
         self.buffer = data
         self.counter = np.mod(self.counter + np.shape(data)[0], self.capacity)
 
     def sample(self, B):
         """
-        :return:
+        :return a sample batch of the buffer composed of B transition
         """
         idx = np.random.choice(self.capacity, B)
         return self.buffer[idx]
@@ -60,7 +56,7 @@ class ReplayBuffer(object):
     def is_full(self):
         """
 
-        :return:
+        :return boolean thta is True if the buffer is already full
         """
         if np.all(self.buffer[-1, :] == np.full([1, 5], None, dtype=object)):
             return False
@@ -85,7 +81,7 @@ def wrap_atari_deepmind(environment_name, clip_rewards):
 
     :param environment_name: the environment name
     :param clip_rewards: boolean variable that indicates whether the reward should be clipped
-    :return: the wrapped environment
+    :return env: the wrapped environment
     """
 
     env = make_atari(environment_name)
@@ -100,7 +96,6 @@ def fill_buffer(replay_buffer):
     Use this data to populate the replay buffer, and train your agent for 300,000 steps.
     Compute the average score obtained by the resulting agent.
     :param replay_buffer:
-    :return:
     """
     array = np.load('replay_buffer_FOR_STUDENTS.npy')
 
@@ -132,7 +127,7 @@ def create_conv_layer(filter_size, stride, input_size, output_size, input):
     :param input_size: input size
     :param output_size: number of neurons
     :param input: input of the layer
-    :return A_conv
+    :return A_conv: ouput
     """
     with tf.variable_scope(None, default_name="conv"):
         # Initialize the weights with tf.variance_scaling_initializer
@@ -210,7 +205,7 @@ def net_param(model, k):
     """
 
     :param model: current model
-    :param k:
+    :param k: dimension of the space object corresponding to valid actions
     :return X, Z, out, scope
     """
     with tf.variable_scope("model_{}".format(model)) as scope:
@@ -228,15 +223,15 @@ def net_param(model, k):
 def create_loss(Z_o, A, R, max_Z_t, Omega, decay=0.99, learning_rate=0.000_1, gamma=0.99):
     """
 
-    :param Z_o:
-    :param A:
-    :param R:
-    :param max_Z_t:
-    :param Omega:
-    :param decay:
-    :param learning_rate:
-    :param gamma:
-    :return loss, train:
+    :param Z_o: placeholder of the online network output
+    :param A: placeholder of the action
+    :param R: placeholder of the reward
+    :param max_Z_t: placeholder of the target network output
+    :param Omega: placeholder of omega
+    :param decay: decay of the optimiser
+    :param learning_rate: learning rate of the optimiser
+    :param gamma: discount factor
+    :return loss, train: loss and train
     """
     # if Ω′ = 1 -> y = r
     # elif Ω′ = 0 -> y = r + γ * max_a′ Q(s′, a′; θ′)
@@ -259,9 +254,9 @@ def create_loss(Z_o, A, R, max_Z_t, Omega, decay=0.99, learning_rate=0.000_1, ga
 def assign_weights(online_scope, target_scope):
     """
 
-    :param online_scope:
-    :param target_scope:
-    :return:
+    :param online_scope: scope of the online network
+    :param target_scope: scope of the target network
+    :return assign: operation that is able to copy the parameters of the online Q-network to the target Q-network
     """
     online_vars = online_scope.trainable_variables()
     target_vars = target_scope.trainable_variables()
@@ -275,13 +270,13 @@ def assign_weights(online_scope, target_scope):
 def epsilon_greedy_policy(session, argmax_Z_o, X_o, epsilon, observation, env):
     """
 
-    :param session:
-    :param argmax_Z_o:
-    :param X_o:
-    :param epsilon:
-    :param observation:
-    :param env:
-    :return action:
+    :param session: session
+    :param argmax_Z_o: placeholder of the online network output
+    :param X_o: placeholder of the online network input
+    :param epsilon: probability of random action
+    :param observation: observation
+    :param env: environment
+    :return action: action
     """
     if np.random.uniform() < (1 - epsilon):
         # at ← arg max_a Q(st, a; θ)
@@ -296,9 +291,9 @@ def epsilon_greedy_policy(session, argmax_Z_o, X_o, epsilon, observation, env):
 def moving_average(values, window=30):
     """
 
-    :param values:
-    :param window:
-    :return moving_average:
+    :param values: values to average
+    :param window: window
+    :return moving_average: moving average vector
     """
     cumsum = np.cumsum(values, dtype=float)
     cumsum[window:] = cumsum[window:] - cumsum[:-window]
@@ -311,14 +306,13 @@ def moving_average(values, window=30):
 def evaluate_model(session, argmax_Z_o, X_o, t, episode, eval_env, f_score):
     """
 
-    :param session:
-    :param argmax_Z_o:
-    :param X_o:
-    :param t:
-    :param episode:
-    :param eval_env:
-    :param f_scrore:
-    :return:
+    :param session: session
+    :param argmax_Z_o: placeholder of the online network output
+    :param X_o: placeholder of the online network input
+    :param t: time step
+    :param episode: episode counter
+    :param eval_env: evaluation environment
+    :param f_score: file where to save the score
     """
     # You should sum the return obtained across 5 different episodes so that you can compare your results to those
     # listed by Mnih et al. (2015).
@@ -355,39 +349,39 @@ def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buff
                 evaluation=100_000, n=4, ret=0.0, returns=None):
     """
 
-    :param model:
-    :param session:
-    :param saver:
-    :param checkpoit_dir:
-    :param env:
-    :param eval_env:
-    :param replay_buffer:
-    :param f_step_episode:
-    :param f_reward:
-    :param f_loss:
-    :param f_score:
-    :param loss:
-    :param train:
-    :param assign:
-    :param X_o:
-    :param A:
-    :param R:
-    :param X_t:
-    :param Omega:
-    :param B:
-    :param argmax_Z_o:
-    :param C:
-    :param n_steps:
-    :param done:
-    :param episode:
-    :param total_steps_time:
-    :param exploration_steps:
-    :param s_epsilon:
-    :param f_epsilon:
-    :param evaluation:
-    :param n:
-    :param ret:
-    :param returns:
+    :param model: name of the model
+    :param session: session
+    :param saver: saver
+    :param checkpoit_dir: directory where to save the session
+    :param env: environment
+    :param eval_env: evaluation environment
+    :param replay_buffer: replay buffer
+    :param f_step_episode: file where to save steps and episode
+    :param f_reward: file where to save reward
+    :param f_loss: file where to save the loss
+    :param f_score: file where to save the score
+    :param loss: loss of the model
+    :param train: train
+    :param assign: result of the assign operation
+    :param X_o: placeholder of the online network input
+    :param A: placeholder of the action
+    :param R: placeholder of the reward
+    :param X_t: placeholder of the target network input
+    :param Omega: placeholder of omega
+    :param B: batch size
+    :param argmax_Z_o: placeholder of the online network output
+    :param C: number of steps between target Q-network updates
+    :param n_steps: number of steps
+    :param done: boolean variable
+    :param episode: episode counter
+    :param total_steps_time: counter for the total time of the steps
+    :param exploration_steps: step in which stop decrease the exploration rate
+    :param s_epsilon: initial exploration rate
+    :param f_epsilon: final exploration rate
+    :param evaluation: step in which start the evaluation
+    :param n: number of steps between online Q-network updates
+    :param ret: episode return
+    :param returns: total returns
     :return:
     """
 
@@ -430,7 +424,7 @@ def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buff
 
         # The networks are not updated until the replay buffer is populated with M = 10000 transitions.
         if replay_buffer.is_full():
-            # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples (transitions) from the replay buffer
+            # Every n = 4 steps, sample a subset/batch D′ ⊂ D composed of B = 32 tuples from the replay buffer
             if t % n == 0:
                 batch = replay_buffer.sample(B)
                 s = np.array(batch[:, 0].tolist())
@@ -487,12 +481,12 @@ def train_model(model, session, saver, checkpoit_dir, env, eval_env, replay_buff
 def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
     """
 
-    :param X_o:
-    :param argmax_Z_o:
-    :param eval_env:
-    :param session:
-    :param video_dir:
-    :return test_env:
+    :param X_o: placeholder of the online network input
+    :param argmax_Z_o: placeholder of the online network output
+    :param eval_env: evaluation environment
+    :param session: session
+    :param video_dir: directory where to save the video
+    :return test_env: environment used for the test (video generation)
     """
     # Wrap the environment using a gym.wrappers.Monitor.
     test_env = gym.wrappers.Monitor(eval_env, video_dir, video_callable=lambda _: True, mode="evaluation", force=True)
@@ -514,11 +508,12 @@ def test_model(X_o, argmax_Z_o, eval_env, session, video_dir):
 def main(model, env_name='BreakoutNoFrameskip-v4', do_train=True, C=10_000, n_steps=2_000_000+1, populate=False):
     """
 
-    :param model:
-    :param env_name:
-    :param do_train:
-    :param C:
-    :return:
+    :param model: name of the model
+    :param env_name: name of the Atari game environment
+    :param do_train: boolean variable, if it is True the model is trained
+    :param C: number of steps between target Q-network updates
+    :param n_steps: number of iteration of the algorithm
+    :param populate: bollean variable, if it is True the replay buffer is filled with personal data
     """
     tf.reset_default_graph()
 
